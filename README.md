@@ -1449,3 +1449,672 @@ A company runs Amazon Redshift (ra3.4xlarge × 8 nodes, $X/month) and Amazon EMR
 * **A)** Correct on Redshift pause/resume and EMR Serverless. However, EMR Serverless for a 4-hour daily batch job is effective but doesn't capture Spot pricing discounts available with transient EC2-based EMR. EMR Serverless charges per vCPU-hour and memory-hour — cost comparison is workload-dependent, but for predictable 4-hour batch, transient Spot EMR is often cheaper.
 * **B)** Migrating Redshift entirely to Athena requires complete SQL compatibility testing and may not support all Redshift-specific SQL extensions. Lambda for EMR-scale data processing (20 nodes × r5.2xlarge = significant compute) hits Lambda memory/timeout limits — technically infeasible for large-scale batch.
 * **D)** Downsizing Redshift without pausing leaves the cluster running idle 72% of the time — cost reduction is marginal (smaller instance) vs pause/resume (zero cost while paused). EMR Managed Scaling adjusts cluster size dynamically but doesn't eliminate idle costs when the cluster runs 24/7 with only 4 hours of work.
+
+ ## Scenario 21: Domain 1 – Design Solutions for Organizational Complexity
+
+A multinational enterprise runs 15 production AWS accounts under AWS Organizations. A new compliance mandate requires: 
+1. All S3 buckets across ALL accounts must block public access at the account level. 
+2. All EC2 instances must have detailed monitoring enabled at launch. 
+3. Any IAM role created with AdministratorAccess must trigger an immediate SNS alert to the security team. 
+4. The Security team must enforce these controls without requiring access to individual member accounts and must be able to demonstrate compliance to auditors.
+
+**Question:** Which architecture satisfies all four requirements with the least operational overhead?
+
+* **A)** Deploy a Lambda function in each member account that checks S3 block public access settings hourly; use CloudTrail + CloudWatch Events for IAM role monitoring; send SNS notifications from each account.
+* **B)** Use AWS Config Conformance Packs deployed via CloudFormation StackSets from the management account: include `s3-account-level-public-access-blocks` rule, `ec2-instance-detailed-monitoring-enabled` rule, and a custom Config rule (Lambda-backed) detecting IAM roles with AdministratorAccess; configure Config Aggregator in the Security account to aggregate all findings; use AWS Security Hub with a delegated admin in the Security account for consolidated view; SNS alert via EventBridge rule on SecurityHub Findings - Imported for IAM AdministratorAccess findings.
+* **C)** Attach SCPs to the Organization root denying `s3:PutBucketPublicAccessBlock` with false values; deny `ec2:RunInstances` without monitoring parameter; deny `iam:CreateRole` if policy includes AdministratorAccess; monitor via AWS Organizations API.
+* **D)** Enable AWS Security Hub in all accounts; use AWS Macie for S3 public access detection; use CloudTrail Insights for IAM anomaly detection; aggregate via a SIEM in the Security account.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — Config Conformance Packs via StackSets + Config Aggregator + Security Hub delegated admin + EventBridge SNS.
+
+**Why it succeeds:**
+* **Req 1 (S3 block public access):** AWS Config managed rule `s3-account-level-public-access-blocks` evaluates the account-level S3 Block Public Access setting — no per-bucket assessment needed.
+* **Req 2 (EC2 detailed monitoring):** `ec2-instance-detailed-monitoring-enabled` is a managed Config rule that evaluates every EC2 instance at launch.
+* **Req 3 (IAM AdministratorAccess alert):** A custom Config rule (Lambda-backed) evaluates IAM roles on change, detecting `arn:aws:iam::aws:policy/AdministratorAccess` attachment. EventBridge routes the NON_COMPLIANT finding to SNS.
+* **Req 4 (No member account access):** CloudFormation StackSets with `SERVICE_MANAGED` deployment mode uses Organizations integration to auto-deploy to all accounts, including new ones, without Security team logging into member accounts. Config Aggregator in the Security account pulls findings from all accounts centrally. Config delegated admin is set to the Security account.
+
+**Why alternatives fail:**
+* **A)** Per-account Lambda functions require deployment and maintenance in 15 accounts — violates "no access to individual accounts" and high operational overhead. Hourly checks miss real-time violation detection.
+* **C)** SCPs operate on deny logic at the API level — they prevent future violations but do not detect or report existing non-compliant resources. SCPs also cannot detect the monitoring parameter in `ec2:RunInstances` reliably (instance monitoring is configured separately via the monitoring-enabled parameter, not easily SCP-controlled). SCPs cannot evaluate IAM policy content (only API actions).
+* **D)** AWS Macie detects sensitive data in S3 objects — it is not a configuration compliance tool. It does not evaluate S3 Block Public Access settings. Security Hub aggregates but cannot enforce controls without Config rules feeding it.
+
+---
+
+## Scenario 22: Domain 2 – Design for New Solutions
+
+A startup is building a multi-region active-active SaaS application for US and EU customers. Requirements: 
+1. Data sovereignty — EU customer data must never be stored or processed in US regions, and vice versa. 
+2. Global URL — customers use app.saas.com regardless of region; routing must be latency-based. 
+3. Session stickiness — a user authenticated in EU must not be re-routed to US mid-session. 
+4. The database tier must be active-active with sub-second replication. 
+5. Authentication tokens must be valid in both regions (users may travel).
+
+**Question:** Which architecture satisfies all five constraints?
+
+* **A)** Route 53 latency-based routing to ALBs in us-east-1 and eu-west-1; Aurora Global Database with us-east-1 primary; DynamoDB Global Tables for session data; JWT tokens signed with a shared secret stored in AWS Secrets Manager (replicated); CloudFront with geo-restriction to enforce data sovereignty.
+* **B)** Route 53 latency-based routing to regional ALBs (us-east-1, eu-west-1); session stickiness via Route 53 geolocation + Route 53 Application Recovery Controller to pin users to a region after first authentication; DynamoDB Global Tables (but with data sovereignty enforced via application-level partition — US customer records written only to us-east-1 table, EU only to eu-west-1) for the application data tier; Amazon Cognito with a User Pool per region but shared client IDs — JWT tokens contain region claim, application validates and rejects cross-region tokens; CloudFront with Lambda@Edge geo-restriction at the edge to block US users from EU origins.
+* **C)** AWS Global Accelerator with endpoint groups in us-east-1 and eu-west-1; client affinity enabled (routes the same client to the same endpoint for session stickiness); Aurora Global Database with regional writers in both regions (active-active via Global Write Forwarding); Amazon Cognito with User Pool per region; JWT tokens with asymmetric RS256 signing — public key distributed to both regions via SSM Parameter Store replication; data sovereignty enforced via Cognito custom attributes tagging user region + application-layer write routing.
+* **D)** CloudFront with two origins (us-east-1, eu-west-1) and geolocation-based cache behaviors; ALB in each region; DynamoDB Global Tables; Lambda@Edge for authentication token validation; Route 53 for failover.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **C** — Global Accelerator (client affinity) + Aurora Global Database (active-active) + Cognito per region + RS256 JWT.
+
+**Why it succeeds:**
+* **Req 1 (Data sovereignty):** Application-layer write routing ensures EU users' data is written to eu-west-1 Aurora regional writer; US to us-east-1. Aurora Global Database's Write Forwarding feature allows secondary regions to accept writes and forward them to the primary — but for true active-active with sovereignty, regional writers are the correct pattern. Data sovereignty is enforced at the application write path, not at the CDN.
+* **Req 2 (Global URL + latency routing):** Global Accelerator uses AWS's global network backbone (not the public internet) for routing — lower latency than Route 53 DNS-based latency routing, which is DNS-TTL-bound.
+* **Req 3 (Session stickiness):** Global Accelerator's client affinity setting routes the same client IP to the same endpoint group for the duration of the session — purpose-built for this requirement.
+* **Req 4 (Active-active sub-second replication):** Aurora Global Database with regional writers + Write Forwarding achieves this. DynamoDB Global Tables also qualifies (sub-second replication, active-active).
+* **Req 5 (Cross-region token validity):** RS256 asymmetric JWT — private key signs tokens per region, public key is distributed to both regions. Both regions can validate tokens signed by either regional Cognito without sharing private keys.
+
+**Why alternatives fail:**
+* **A)** Aurora Global Database with a single us-east-1 primary is not active-active — EU writes forward to US, creating EU→US data flow that violates data sovereignty requirement 1. CloudFront geo-restriction blocks user access, not data flow — it doesn't enforce where data is stored.
+* **B)** DynamoDB Global Tables replicates data to ALL configured regions automatically — you cannot prevent EU data from appearing in the us-east-1 table replica. This directly violates data sovereignty. Application-level partitioning doesn't stop Global Tables replication engine.
+* **D)** CloudFront is a CDN optimized for cacheable content — it does not provide session stickiness for dynamic API traffic. Lambda@Edge for auth adds latency at every request and cannot enforce database-level data sovereignty.
+
+---
+
+## Scenario 23: Domain 1 – Design Solutions for Organizational Complexity
+
+An enterprise has Direct Connect (10 Gbps dedicated connection) to AWS. They have 3 VPCs: Prod-VPC (192.168.1.0/24), Dev-VPC (192.168.2.0/24), and Shared-Services-VPC (192.168.3.0/24). On-premises CIDR is 10.0.0.0/8. Requirements: 
+1. On-premises must reach all 3 VPCs. 
+2. Prod-VPC and Dev-VPC must NOT communicate with each other. 
+3. Both must be able to reach Shared-Services-VPC. 
+4. The solution must support adding 50 more VPCs over the next year with minimal reconfiguration.
+
+**Question:** Which Transit Gateway design satisfies all requirements?
+
+* **A)** Create a TGW; attach all 3 VPCs and the Direct Connect Gateway; use a single shared route table with all routes propagated; use NACLs in Prod-VPC and Dev-VPC to block inter-VPC traffic.
+* **B)** Use VPC Peering: Prod→Shared, Dev→Shared, on-premises via Virtual Private Gateways in each VPC; no TGW needed.
+* **C)** Create a TGW with 3 route tables: (1) Prod-RT: associated with Prod-VPC attachment, propagates routes from Shared-Services and DXGW only; (2) Dev-RT: associated with Dev-VPC attachment, propagates routes from Shared-Services and DXGW only; (3) Shared-RT: associated with Shared-Services-VPC and DXGW attachments, propagates routes from ALL attachments; on-premises static routes to all 3 VPC CIDRs via DXGW → TGW.
+* **D)** Create a TGW with 2 route tables: Spoke-RT (Prod + Dev) with default route to Shared-Services; Shared-RT (Shared-Services + DXGW) with routes to Prod and Dev; use TGW blackhole routes to block Prod↔Dev.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **C** — Three TGW route tables with precise propagation control.
+
+**Why it succeeds:** TGW route table isolation is the AWS-recommended pattern for segmented hub-and-spoke networks:
+* **Prod-RT** has routes only for Shared-Services CIDR and on-premises (DXGW) — Prod has no route to Dev, so Prod→Dev traffic is dropped at TGW.
+* **Dev-RT** mirrors Prod-RT — Dev has no route to Prod.
+* **Shared-RT** has routes to ALL CIDRs (Prod, Dev, on-premises) — Shared-Services can reach everything, and return traffic from Shared-Services to Prod/Dev routes correctly.
+* **DXGW** association with TGW allows on-premises to reach all VPCs via the Shared-RT propagation.
+* **Scaling:** Adding a new VPC in year 2 requires only attaching it to TGW and associating with the appropriate route table (Prod-RT or Dev-RT pattern) — no reconfiguration of existing VPCs or route tables.
+
+**Why alternatives fail:**
+* **A)** Single shared route table with all routes propagated means Prod and Dev have routes to each other — requirement 2 violated. NACLs at the VPC level can filter traffic but are stateless and hard to manage at scale; they're not the correct isolation mechanism for TGW routing.
+* **B)** VPC Peering doesn't scale to 50+ VPCs — you'd need a full mesh of peering connections (n×(n-1)/2 = 1,275 peering connections for 51 VPCs). Also, VPC Peering is non-transitive: on-premises reaching all VPCs via Direct Connect requires a VGW in each VPC — massive operational overhead.
+* **D)** Two route tables with a blackhole route for Prod↔Dev is partially correct but less clean than three route tables. Blackhole routes must be explicitly added for every new spoke VPC pair — higher maintenance. Three dedicated route tables (Prod-RT, Dev-RT, Shared-RT) are more explicit and scalable.
+
+---
+
+## Scenario 24: Domain 2 – Design for New Solutions
+
+A company is building a compliance-as-code platform for regulated industries. The platform must: 
+1. Automatically evaluate new AWS accounts provisioned via AWS Organizations against a baseline of 150 compliance controls. 
+2. Generate audit-ready reports in PDF format within 30 minutes of account creation. 
+3. Provide a self-service remediation portal where account owners can trigger automated fixes. 
+4. Integrate with an existing ServiceNow ITSM for change management ticketing. 
+5. Support custom control definitions that non-engineers can configure without writing Lambda code.
+
+**Question:** Which architecture best satisfies all five requirements?
+
+* **A)** AWS Config with 150 managed/custom rules deployed via StackSets; AWS Security Hub for aggregation; Lambda for PDF report generation; API Gateway + Lambda for remediation portal; SNS→SQS→Lambda for ServiceNow integration; custom controls via Config rule parameters.
+* **B)** AWS Control Tower with Customizations for Control Tower (CfCT); AWS Security Hub; custom Lambda controls; ServiceNow EventBridge integration; PDF via Lambda+WeasyPrint.
+* **C)** AWS Config Conformance Packs (bundling all 150 rules) deployed via CloudFormation StackSets with `SERVICE_MANAGED` deployment (auto-deploys to new accounts via Organizations); AWS Security Hub (delegated admin) aggregates findings with SUPPRESSED/FAILED status; Step Functions workflow triggered by EventBridge (account creation event from Organizations) → generates compliance report via Lambda (PDF using ReportLab/WeasyPrint) → stores in S3 → presigned URL sent via SNS; API Gateway + Lambda remediation functions (SSM Automation runbooks as the actual fix mechanisms) behind a React portal in S3+CloudFront; EventBridge → API Gateway → ServiceNow REST API for ticket creation on new findings; custom controls via AWS Config custom rules with AWS CloudFormation Guard (cfn-guard policy-as-code, YAML-based, no Lambda required).
+* **D)** Prisma Cloud for compliance evaluation; ServiceNow Cloud Management for AWS governance; custom portal in EC2; PDF reports via scheduled Lambda; Config for resource inventory.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **C** — Config Conformance Packs + StackSets (`SERVICE_MANAGED`) + Step Functions + SSM Automation + cfn-guard + EventBridge → ServiceNow.
+
+**Why it succeeds:**
+* **Req 1 (Auto-evaluate new accounts):** CloudFormation StackSets with `SERVICE_MANAGED` + Organizations integration automatically deploys Conformance Packs to new accounts on creation — zero manual intervention.
+* **Req 2 (PDF in 30 min):** EventBridge detects `CreateAccountResult` event from Organizations → triggers Step Functions → Lambda evaluates Config findings via Security Hub API → generates PDF (ReportLab) → uploads to S3 → SNS notification with presigned URL. Well within 30 minutes.
+* **Req 3 (Self-service remediation portal):** API Gateway exposes remediation endpoints backed by Lambda → invokes SSM Automation runbooks (pre-built, auditable remediation playbooks). React SPA on S3+CloudFront provides the UI.
+* **Req 4 (ServiceNow integration):** EventBridge rule on Security Hub Findings - Imported events → API destination → ServiceNow REST API creates change ticket. EventBridge API destinations natively support REST webhooks.
+* **Req 5 (Custom controls, no Lambda):** AWS CloudFormation Guard (cfn-guard) rules are YAML-based policy-as-code that non-engineers can write following a template pattern. Config custom rules backed by cfn-guard use the `CLOUDFORMATION_GUARD` evaluation mode — no Lambda function authoring required.
+
+**Why alternatives fail:**
+* **A)** Config custom rule parameters allow configuring existing rules but cannot define new control logic without Lambda code. Fails requirement 5.
+* **B)** Control Tower CfCT is powerful but requires Control Tower enrollment of all accounts (significant prerequisites). CfCT doesn't natively generate PDF compliance reports. Custom Lambda controls for 150 rules is high engineering effort.
+* **D)** Prisma Cloud and ServiceNow Cloud Management are third-party tools that add cost and integration complexity. The question asks for an AWS-native architecture.
+
+---
+
+## Scenario 25: Domain 3 – Migration Planning
+
+A company is running a VMware vSphere environment on-premises with 300 VMs. They want to migrate to AWS while: 
+1. Minimizing refactoring — the operations team is unfamiliar with AWS-native services. 
+2. Maintaining the same VMware operational model (vCenter, vMotion, DRS) during a 12-month transition. 
+3. Running workloads that require bare-metal performance (vSAN-backed storage, network-intensive). 
+4. Enabling seamless VM migration from on-premises to AWS without OS conversion. 
+5. Post-migration, gradually modernizing select workloads to containers over 18 months.
+
+**Question:** Which migration approach is the most appropriate?
+
+* **A)** Use AWS Application Migration Service (MGN) to lift-and-shift all 300 VMs to EC2; use EC2 bare-metal instances for performance; post-migration modernize using AWS App2Container.
+* **B)** Deploy VMware Cloud on AWS (VMC on AWS) — extends the on-premises vSphere environment to AWS-hosted dedicated bare-metal hosts managed via vCenter; use vMotion to migrate VMs from on-premises to VMC on AWS without downtime and without OS conversion; maintain VMware DRS/vSAN on AWS hosts; use VMC on AWS integration with AWS native services (RDS, S3, DynamoDB) for modernization; use AWS Tanzu (or VMware Tanzu on VMC) for container modernization track over 18 months.
+* **C)** Use AWS Outposts with VMware support; deploy vSphere on Outposts; migrate VMs to Outposts; extend to AWS regions gradually.
+* **D)** Use AWS Migration Hub to orchestrate MGN migrations; convert VM disks using AWS VM Import/Export; deploy on EC2 Dedicated Hosts; use EKS for containerization post-migration.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — VMware Cloud on AWS (VMC on AWS).
+
+**Why it succeeds:** VMC on AWS is the only AWS offering that provides a fully managed VMware SDDC (Software-Defined Data Center) running on dedicated AWS bare-metal hosts:
+* **Req 1 (No refactoring, familiar ops model):** Operations team continues using vCenter, the same UI and tooling as on-premises. Zero AWS-native service learning required initially.
+* **Req 2 (Same VMware operational model):** VMC on AWS runs vSphere, vSAN, NSX-T, and vCenter natively — DRS, HA, vMotion all work identically.
+* **Req 3 (Bare-metal performance):** VMC on AWS uses i3.metal AWS bare-metal hosts, providing vSAN-backed storage and bare-metal network performance — no hypervisor overhead for the VMware layer.
+* **Req 4 (Seamless vMotion migration):** vMotion works between on-premises vSphere and VMC on AWS over the Direct Connect connection — live VM migration with zero downtime and no OS conversion.
+* **Req 5 (Container modernization):** VMware Tanzu integrates with VMC on AWS for Kubernetes containerization of select workloads post-migration.
+
+**Why alternatives fail:**
+* **A)** MGN converts VMs to EC2 AMIs — this is a format conversion that takes each VM offline for cutover (not zero-downtime vMotion). The operations team loses vCenter and must learn AWS EC2 management immediately. Fails requirements 1, 2, and 4.
+* **C)** AWS Outposts runs AWS-native services (EC2, EKS, RDS) on-premises — it does not run VMware. There is no "VMware support" on standard Outposts. (Note: VMware Cloud on AWS Outposts is a separate, niche offering for keeping VMware on-premises, opposite of the requirement to migrate to AWS.)
+* **D)** VM Import/Export requires downtime for disk conversion; EC2 Dedicated Hosts don't provide the VMware operational model; EKS for containerization requires significant refactoring. Fails requirements 1, 2, and 4.
+
+---
+
+## Scenario 26: Domain 4 – Cost Control
+
+A company's Lambda-heavy architecture processes 2 billion invocations/month. Cost breakdown: 
+1. Lambda compute: $85,000/month (avg duration 800ms, 1GB memory). 
+2. Lambda invocations: $4,000/month. 
+3. API Gateway REST API: $70,000/month (7B API calls/month). 
+4. CloudWatch Logs from Lambda: $30,000/month. 
+5. X-Ray tracing: $12,000/month.
+
+**Question:** Which optimizations reduce costs most significantly while maintaining observability?
+
+* **A)** Reduce Lambda memory to 128MB; disable CloudWatch Logs; disable X-Ray; switch API Gateway to HTTP API; implement request/response compression.
+* **B)** Optimize Lambda function code to reduce duration; use Lambda Power Tuning (open-source tool via Step Functions) to find the optimal memory/price point; migrate API Gateway REST API to HTTP API (up to 71% cheaper); implement CloudWatch Logs subscription filters routing non-ERROR logs to S3 via Firehose (reduce CW Logs ingestion by ~90%); replace X-Ray with CloudWatch Lambda Insights for performance monitoring (included in Lambda pricing tiers); implement Lambda function URLs for direct invocations that don't need API Gateway features.
+* **C)** Move all Lambda workloads to ECS Fargate for predictable pricing; disable all logging; use CloudWatch Container Insights instead.
+* **D)** Purchase Lambda Savings Plans; implement SQS batching to reduce Lambda invocation count; reduce API Gateway throttling limits; use CloudWatch Logs Insights for querying instead of streaming.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — Power Tuning + HTTP API + Log filtering + Insights.
+
+**Why it succeeds:**
+* **Lambda compute ($85K):** AWS Lambda Power Tuning (open-source Step Functions state machine) runs the function at different memory configurations and measures cost × duration. At 1GB/800ms, increasing memory to 1.5GB or 2GB may reduce duration to 400ms — same or lower cost due to faster execution. Power Tuning finds the optimal point empirically.
+* **API Gateway ($70K → ~$20K):** HTTP API costs $1.00/million calls vs REST API at $3.50/million = 71% reduction. At 7B calls/month: REST = $24,500 (plus data processing); HTTP API = ~$7,000. HTTP API supports Lambda, HTTP backends, JWT authorizers — covers most REST API use cases.
+* **CloudWatch Logs ($30K → ~$3K):** Lambda logs at $0.50/GB. Filtering only ERROR-level logs to CloudWatch and routing INFO/DEBUG to S3 via Kinesis Firehose ($0.029/GB) reduces CW Logs ingestion by 80–90%.
+* **X-Ray ($12K → ~$0):** CloudWatch Lambda Insights provides enhanced monitoring (memory, CPU, cold starts) at no additional cost beyond CloudWatch metrics pricing. X-Ray sampling can also be reduced from 5% to 1% to cut costs 80%.
+
+**Why alternatives fail:**
+* **A)** Reducing Lambda memory to 128MB without profiling may increase cost — if duration increases proportionally more than memory decreases, total GB-seconds increase. Disabling all logging eliminates operational visibility entirely.
+* **C)** Migrating 2B invocations/month to ECS Fargate eliminates Lambda's event-driven scaling and introduces always-on container costs. For event-driven workloads, Lambda is almost always more cost-effective than Fargate.
+* **D)** Lambda Savings Plans provide up to 17% discount — significant but less impactful than the 71% API Gateway savings and 90% log savings available. SQS batching reduces invocation count but also changes the processing semantics.
+
+---
+
+## Scenario 27: Domain 5 – Continuous Improvement for Existing Solutions
+
+A company's microservices architecture on ECS Fargate uses Application Load Balancer (ALB) for routing. Problems: 
+1. Service-to-service calls fail with 502 errors intermittently (~2% of requests) — no pattern identified. 
+2. A new requirement mandates mTLS for all service-to-service communication. 
+3. Services need circuit breaker functionality to prevent cascading failures. 
+4. The team wants distributed tracing across all 20 services without code changes. 
+5. A/B testing is needed for 3 services with percentage-based traffic splitting.
+
+**Question:** Which AWS-native solution addresses all five issues?
+
+* **A)** Deploy AWS App Mesh as a service mesh (Envoy sidecar proxy injected into each ECS task): (1) Envoy proxy handles connection-level retries — fixing 502 errors from transient connection drops; (2) App Mesh supports mTLS via ACM Private CA certificates distributed to Envoy sidecars automatically; (3) Circuit breaker configured via App Mesh virtual node outlier detection (consecutive 5xx threshold); (4) App Mesh integrates with AWS X-Ray — Envoy exports traces to X-Ray daemon automatically, no application code changes; (5) App Mesh virtual router with weighted targets enables percentage-based traffic splitting (e.g., 90% v1, 10% v2).
+* **B)** Replace ALB with NLB for lower latency; implement mTLS in each service's code; use AWS Step Functions for circuit breaker logic; deploy X-Ray SDK in each service; use ALB weighted target groups for A/B testing.
+* **C)** Migrate to EKS and deploy Istio service mesh; use Istio's PeerAuthentication for mTLS; use Istio's DestinationRule for circuit breaking; Istio+Jaeger for tracing; Istio VirtualService for traffic splitting.
+* **D)** Use AWS Fault Injection Simulator to identify 502 root causes; implement API Gateway with mTLS; use Lambda for circuit breaker logic; use Route 53 weighted routing for A/B testing.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **A** — AWS App Mesh with Envoy sidecars on ECS Fargate.
+
+**Why it succeeds:** App Mesh is AWS's managed service mesh designed specifically for ECS/EKS/EC2 workloads:
+* **Issue 1 (502 errors):** Envoy proxy handles TCP connection management and retry policies at the proxy layer — transient connection failures between services are retried transparently without application awareness.
+* **Issue 2 (mTLS):** App Mesh integrates with ACM Private CA to provision and rotate certificates for Envoy sidecars. mTLS is enforced at the Envoy layer — zero application code changes.
+* **Issue 3 (Circuit breaker):** App Mesh virtual node outlier detection (based on Envoy's outlier detection algorithm) ejects unhealthy upstream hosts from the load balancing pool after configurable consecutive failure thresholds.
+* **Issue 4 (Distributed tracing):** Envoy sidecar in App Mesh automatically emits traces to X-Ray (configured via App Mesh's tracing configuration) — no SDK instrumentation required in application code.
+* **Issue 5 (A/B traffic splitting):** App Mesh virtual router weighted routes split traffic by percentage between virtual nodes — native percentage-based routing.
+
+**Why alternatives fail:**
+* **B)** Implementing mTLS, circuit breakers, and tracing in each service's code requires changes to all 20 services — high engineering effort and defeats the "without code changes" requirement for tracing.
+* **C)** Migrating ECS Fargate to EKS is a complete platform migration — operationally complex and not a "continuous improvement" of the existing ECS architecture. Istio on EKS is the Kubernetes-native equivalent of App Mesh on ECS.
+* **D)** AWS FIS is a chaos engineering tool for fault injection — not a diagnostic tool for identifying 502 root causes. API Gateway for service-to-service mTLS is not the right pattern (API Gateway is for external client-to-service, not east-west service mesh traffic). Route 53 weighted routing operates at DNS level — too coarse for request-level traffic splitting.
+
+---
+
+## Scenario 28: Domain 2 – Design for New Solutions
+
+A financial services company needs to build a disaster recovery solution for its primary application in us-east-1. Requirements: 
+1. RTO = 15 minutes, RPO = 1 minute. 
+2. The DR region is us-west-2. 
+3. The application has: Aurora MySQL (multi-TB), EC2 Auto Scaling fleet (stateless), ElastiCache Redis (session data), S3 (document storage), DynamoDB (transaction records). 
+4. Cost must be minimized during steady-state (DR region should cost <10% of prod). 
+5. Failover must be fully automated — no human intervention for the 15-minute RTO.
+
+**Question:** Which DR architecture meets all constraints?
+
+* **A)** Pilot Light in us-west-2: Aurora Global Database (secondary cluster in us-west-2 — read-only replica, sub-second lag = RPO < 1 min); minimal EC2 Auto Scaling group (0 desired, 0 min, scales up on failover trigger); ElastiCache Redis backup restored from snapshot (RTO risk); S3 Cross-Region Replication (CRR); DynamoDB Global Tables; Route 53 health checks on the primary ALB endpoint trigger AWS Systems Manager Automation runbook on health check failure: (1) Promotes Aurora Global DB secondary, (2) Scales ASG to production capacity, (3) Updates Route 53 record to us-west-2 ALB — all within 15 minutes.
+* **B)** Active-active in both regions; full production capacity in us-west-2 at all times; Route 53 latency routing; DynamoDB Global Tables; Aurora Global Database active-active; ElastiCache Global Datastore.
+* **C)** Cold standby: nightly Aurora snapshots copied to us-west-2; EC2 AMI backups; Redis snapshot to S3; restore from snapshots on failure; 4-hour RTO acceptable.
+* **D)** Warm standby: reduced-capacity EC2 ASG running in us-west-2; Aurora Global Database secondary; ElastiCache Redis Global Datastore; S3 CRR; DynamoDB Global Tables; manual runbook for failover steps executed by on-call engineer.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **A** — Pilot Light with automated SSM Automation runbook failover.
+
+**Why it succeeds:**
+* **RPO = 1 minute:** Aurora Global Database replicates with typical lag < 1 second — far exceeds the 1-minute RPO requirement. DynamoDB Global Tables replicates in < 1 second. S3 CRR replicates objects within minutes (S3 Replication Time Control guarantees 99.99% of objects in 15 minutes).
+* **RTO = 15 minutes (automated):** The SSM Automation runbook sequence: Route 53 health check detects primary failure (60-second failure threshold) → triggers CloudWatch Alarm → EventBridge invokes SSM Automation → Step 1: promote Aurora Global Database secondary (< 1 min) → Step 2: ASG desired capacity update (EC2 provisioning ~5 min with pre-warmed AMIs) → Step 3: Route 53 record update (< 60 seconds TTL propagation). Total: ~8–12 minutes — within 15 minutes.
+* **Cost < 10% of prod:** Pilot Light runs zero EC2 instances (0 desired ASG), minimal RDS read replica cost, minimal ElastiCache (no Redis in pilot light — Redis session data is rebuilt on user re-authentication post-failover, an acceptable tradeoff). S3 CRR storage cost mirrors primary S3.
+
+**Why alternatives fail:**
+* **B)** Active-active costs 100% of prod in both regions permanently — violates the <10% cost constraint during steady-state.
+* **C)** Snapshot restore takes 4+ hours for multi-TB Aurora — completely incompatible with 15-minute RTO. Explicitly acknowledged in the option.
+* **D)** Warm standby with manual runbook violates requirement 5 (fully automated). Manual execution of failover steps introduces human error and variability — cannot guarantee 15-minute RTO.
+
+---
+
+## Scenario 29: Domain 5 – Continuous Improvement for Existing Solutions
+
+A company's data pipeline runs on AWS Glue (PySpark ETL jobs) processing 10TB/day from S3 to Redshift. Issues: 
+1. Glue jobs are taking 4+ hours (SLA: 2 hours). 
+2. $45,000/month in Glue DPU costs. 
+3. Jobs fail 15% of the time with out-of-memory errors. 
+4. Data quality issues — 8% of records have null values in critical fields — discovered only after loading to Redshift. 
+5. The team has no visibility into which transformation step is the bottleneck.
+
+**Question:** Which improvements address all five issues?
+
+* **A)** Increase Glue DPU count to 200; enable Glue job bookmarks; add null checks in Redshift stored procedures post-load; use CloudWatch for job monitoring.
+* **B)** Migrate to EMR with Spark on Spot Instances for cost reduction; use Apache Griffin for data quality; implement Ganglia for Spark UI; increase executor memory.
+* **C)** Enable Glue job profiling (Spark UI via CloudWatch) to identify bottleneck transformations (Issue 5); optimize PySpark code using Glue's pushdown predicates and partition pruning to reduce data scanned (Issue 1); right-size DPUs using job profiling insights — reduce DPUs and use Glue Flex execution (spot-backed, 34% cheaper) for non-time-critical jobs (Issue 2); increase executor memory in Glue job parameters (`--conf spark.executor.memory`) and enable Glue auto-scaling (Issue 3); implement AWS Glue Data Quality (DQDL rules) as a pre-load check — fail the job and alert via SNS before writing to Redshift if null rate exceeds threshold (Issue 4).
+* **D)** Split the Glue job into smaller parallel jobs using Glue workflows; add more S3 partitions; use Glue DataBrew for data quality; increase Redshift cluster size; use Glue triggers for retry logic.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **C** — Profiling + PySpark optimization + Flex DPUs + memory tuning + Glue Data Quality.
+
+**Why it succeeds:**
+* **Issue 1 (4+ hours):** Glue Spark UI via CloudWatch reveals which stage (shuffle, scan, join) is the bottleneck. Pushdown predicates and S3 partition pruning reduce data scanned at the source — the most impactful performance optimization in Spark ETL (avoiding full S3 scans).
+* **Issue 2 ($45K/month):** Glue Flex execution uses spare AWS capacity at a 34% discount — ideal for non-SLA-critical transformations within the pipeline. Right-sizing DPUs after profiling eliminates over-provisioned DPUs.
+* **Issue 3 (OOM errors):** Increasing `spark.executor.memory` in Glue job parameters directly addresses heap OOM errors. Glue auto-scaling dynamically adjusts DPUs during job execution, preventing resource starvation during peak transformation stages.
+* **Issue 4 (Data quality, 8% nulls):** AWS Glue Data Quality uses DQDL (Data Quality Definition Language) rules (e.g., `IsComplete "critical_field" > 0.95`) evaluated inline during the ETL job. If rules fail, the job halts before writing to Redshift — preventing bad data from reaching the data warehouse.
+* **Issue 5 (No visibility):** Glue Spark UI (accessible via CloudWatch) provides the standard Apache Spark DAG visualization, stage timings, and executor metrics — the definitive tool for identifying ETL bottlenecks.
+
+**Why alternatives fail:**
+* **A)** Increasing DPU count to 200 treats the symptom (slow jobs) without diagnosing the root cause — may not help if the bottleneck is a skewed shuffle partition or a non-parallelizable step, and will significantly increase cost.
+* **B)** Migrating to EMR is operationally complex and not a "continuous improvement" of the existing Glue setup. Apache Griffin requires additional infrastructure. This approach doesn't address Glue-specific issues.
+* **D)** Glue DataBrew is a visual data preparation tool for analysts — not appropriate for production pipeline data quality checks. It doesn't integrate as a pre-load quality gate in the way Glue Data Quality does.
+
+---
+
+## Scenario 30: Domain 3 – Migration Planning
+
+A company is migrating their Microsoft Active Directory environment to AWS. Current state: 2 on-premises AD domain controllers for corp.example.com. Requirements: 
+1. AWS workloads (EC2 Windows, RDS for SQL Server with Windows Auth) must join the corp.example.com domain. 
+2. On-premises users must authenticate to AWS applications via AD credentials. 
+3. AD must remain authoritative on-premises — AWS is an extension, not a replacement. 
+4. The solution must function if Direct Connect fails (internet failover). 
+5. The solution must support MFA for AWS Management Console access.
+
+**Question:** Which AD architecture satisfies all constraints?
+
+* **A)** Deploy AWS Managed Microsoft AD in us-east-1; establish a forest trust (one-way or two-way) with on-premises corp.example.com; configure EC2 and RDS instances to join the AWS Managed AD domain; use AD Connector in a separate VPC for console authentication; enable AWS Managed AD MFA via RADIUS.
+* **B)** Deploy AWS Managed Microsoft AD in a shared-services VPC; configure AD Trust with on-premises corp.example.com (two-way trust — allows on-premises users to authenticate to AWS resources in the corp.example.com domain); deploy AD Connector as a redundant authentication proxy (AD Connector points to AWS Managed AD as backup when DX fails — since Managed AD is in AWS, internet failover maintains AD Connector functionality); enable MFA on IAM Identity Center with TOTP/RADIUS; use IAM Identity Center with AWS Managed AD as identity source.
+* **C)** Deploy AD Connector only (no Managed AD) pointing to on-premises DCs; EC2 instances join on-premises domain via Direct Connect; RDS SQL Server uses Windows Auth via on-premises AD; if DX fails, AD Connector loses connectivity — deploy a second AD Connector pointing to internet-accessible on-premises DCs via VPN over internet; enable IAM Identity Center with AD Connector as identity source; MFA via IAM Identity Center TOTP.
+* **D)** Lift-and-shift on-premises DCs to EC2; make AWS EC2 DCs authoritative; configure on-premises as read-only DCs replicating from AWS; Direct Connect for replication traffic.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — AWS Managed Microsoft AD (with forest trust) + IAM Identity Center + MFA.
+
+**Why it succeeds:**
+* **Req 1 (EC2/RDS domain join):** EC2 Windows instances and RDS SQL Server with Windows Auth can join AWS Managed Microsoft AD directly — AWS Managed AD is a real Microsoft AD (not a proxy). RDS SQL Server Windows Authentication requires AWS Managed AD (not AD Connector).
+* **Req 2 (On-premises users authenticate to AWS):** The two-way forest trust between AWS Managed AD and on-premises corp.example.com allows on-premises users (who authenticate to on-premises AD) to access AWS resources via Kerberos trust traversal.
+* **Req 3 (On-premises remains authoritative):** The trust is configured with on-premises as the root domain — on-premises AD remains the source of truth. AWS Managed AD is an extension (trusting domain).
+* **Req 4 (DX failover):** Since AWS Managed AD resides in AWS (not on-premises), AD Connector pointed at Managed AD functions over the internet if DX fails — no dependency on on-premises DCs for AWS resource authentication.
+* **Req 5 (MFA):** IAM Identity Center with AWS Managed AD as identity source + built-in TOTP MFA (or RADIUS MFA via Managed AD's RADIUS support) provides MFA for Console access.
+
+**Why alternatives fail:**
+* **A)** AD Connector as a separate proxy alongside Managed AD is redundant and creates confusion about which directory services EC2/RDS resources join. RDS SQL Server Windows Auth specifically requires Managed AD — AD Connector cannot support this.
+* **C)** AD Connector alone cannot support RDS SQL Server Windows Authentication (RDS requires Managed AD). If Direct Connect fails and AD Connector loses connectivity to on-premises DCs, all AWS authentication fails — the internet VPN fallback for AD Connector requires the on-premises DC to be internet-accessible, a security risk.
+* **D)** Making AWS EC2 DCs authoritative and on-premises read-only inverts the stated requirement (on-premises must remain authoritative). This is a major architectural change, not a hybrid extension.
+
+---
+
+## Scenario 31: Domain 2 – Design for New Solutions
+
+A company wants to implement a zero-trust network architecture for their AWS environment. Currently all inter-service communication uses security groups and VPC peering. Requirements: 
+1. All service-to-service API calls must carry cryptographic identity (not just network-layer trust). 
+2. Services must be able to verify the identity of the caller before processing requests. 
+3. The solution must work across multiple AWS accounts. 
+4. No VPN or Direct Connect required for cross-account service communication. 
+5. Solution must support both Lambda and ECS Fargate workloads.
+
+**Question:** Which architecture implements zero-trust most completely?
+
+* **A)** Use VPC Peering between accounts; enforce strict security groups; use NACLs for defense-in-depth; require IAM authentication headers in all API calls.
+* **B)** Deploy AWS PrivateLink (VPC Endpoint Services) for cross-account service exposure; services use IAM SigV4 request signing with IAM roles (Lambda execution roles, ECS task roles) to sign API requests; the receiving service validates the Authorization header signature using AWS SDK; deploy API Gateway with IAM authorization (AWS_IAM auth type) as the service endpoint — API Gateway validates SigV4 signatures against caller's IAM role ARN; cross-account access via resource-based policies on API Gateway; no VPN needed (PrivateLink over AWS backbone).
+* **C)** Use AWS Certificate Manager Private CA to issue mutual TLS certificates to each service; configure ALBs with mTLS listener; services present certificates for authentication; cross-account via TGW.
+* **D)** Deploy AWS Verified Access for all service-to-service calls; use IAM Identity Center for service identities; require SAML assertions for each API call.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — AWS PrivateLink + IAM SigV4 signing + API Gateway (AWS_IAM auth).
+
+**Why it succeeds:**
+* **Req 1 (Cryptographic identity):** IAM SigV4 request signing uses the service's IAM role credentials (access key + secret key derived from STS AssumeRole) to cryptographically sign every HTTP request. The signature is bound to the specific request content, timestamp, and region — impossible to forge without the IAM credentials.
+* **Req 2 (Caller identity verification):** API Gateway with AWS_IAM authorization type extracts the Authorization SigV4 header, validates it against IAM, and provides the caller's IAM principal ARN to the backend. The backend knows exactly which IAM role made the call.
+* **Req 3 (Cross-account):** API Gateway resource-based policies allow specific cross-account IAM role ARNs. The calling service (Lambda/ECS in Account A) assumes a role in Account A, signs the request, and API Gateway in Account B validates it via STS.
+* **Req 4 (No VPN/DX):** AWS PrivateLink routes traffic over the AWS backbone — no public internet traversal, no VPN required.
+* **Req 5 (Lambda + ECS Fargate):** Both Lambda execution roles and ECS task IAM roles are standard IAM roles — SigV4 signing is supported in all AWS SDKs for both platforms.
+
+**Why alternatives fail:**
+* **A)** Security groups and NACLs are network-layer controls (IP-based) — they provide no cryptographic identity. An IP address is not a service identity. This is traditional perimeter security, not zero-trust.
+* **C)** mTLS provides cryptographic identity at the TLS layer but requires certificate distribution, rotation, and PKI management. Cross-account via TGW requires TGW attachment in each account. mTLS certificates don't natively integrate with IAM authorization — you'd need custom certificate validation logic. More operationally complex than SigV4.
+* **D)** AWS Verified Access is designed for human user access to corporate applications (zero-trust network access for humans) — not for service-to-service API authentication. SAML assertions are for human identity federation, not machine-to-machine calls.
+
+---
+
+## Scenario 32: Domain 4 – Cost Control
+
+A company runs a multi-tier web application across 3 environments: production, staging, and development. Monthly costs: 
+1. EC2 (prod: $40K, staging: $35K, dev: $28K). 
+2. RDS (prod: $15K, staging: $12K, dev: $8K). 
+3. Data transfer: $22K. 
+4. Total: $160K/month. 
+A FinOps review reveals staging mirrors production exactly, dev runs 24/7 with 5% utilization, and 70% of data transfer is EC2↔S3 within the same region.
+
+**Question:** Which set of changes provides the greatest cost reduction?
+
+* **A)** Right-size staging EC2 to 50% of prod; use RDS read replicas instead of Multi-AZ for staging; stop dev on nights/weekends; add S3 Gateway Endpoint; purchase Savings Plans for prod.
+* **B)** Terminate staging EC2 On-Demand and replace with Spot Instances (staging is non-production, interruption-tolerant); right-size staging RDS to single-AZ (no Multi-AZ needed for staging); implement Instance Scheduler for dev (stop 18hrs/day weekdays + full weekends = ~75% dev EC2/RDS cost reduction); add S3 Gateway Endpoints in all VPCs (eliminates 70% of $22K data transfer = ~$15.4K/month savings); purchase 1-year Compute Savings Plans covering prod EC2 baseline (~30% prod EC2 reduction).
+* **C)** Merge staging and dev into a single environment; use AWS Service Catalog for environment provisioning on-demand; implement Savings Plans for all environments; add VPC endpoints.
+* **D)** Migrate all environments to ECS Fargate; use Aurora Serverless for all RDS; implement S3 Intelligent-Tiering; stop staging when not in use.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — Spot for staging + single-AZ staging RDS + Instance Scheduler for dev + S3 Gateway Endpoints + prod Savings Plans.
+
+**Why it succeeds:** Five targeted, high-ROI actions:
+* **Staging EC2 → Spot (~70% saving):** $35K × 70% = $24.5K/month reduction. Staging is non-production, making it ideal for Spot (interruption can trigger a redeploy).
+* **Staging RDS single-AZ (~50% saving):** Multi-AZ doubles RDS instance cost. $12K → ~$6K = $6K/month reduction.
+* **Dev Instance Scheduler (75% saving):** $28K EC2 + $8K RDS = $36K × 75% = $27K/month reduction.
+* **S3 Gateway Endpoints:** 70% of $22K data transfer is EC2→S3 within the same region routing through NAT Gateway at $0.045/GB. S3 Gateway Endpoint is free and eliminates this charge: $15.4K/month reduction.
+* **Prod Savings Plans (~30%):** $40K × 30% = $12K/month reduction.
+* **Total estimated savings:** ~$84.9K/month (53% reduction).
+
+**Why alternatives fail:**
+* **A)** Right-sizing staging to 50% of prod is less aggressive than Spot (50% reduction vs 70%); doesn't address the dev 24/7 waste comprehensively.
+* **C)** Merging staging and dev environments is an operational risk — staging defects contaminate dev. AWS Service Catalog for on-demand provisioning adds process overhead.
+* **D)** Migrating all environments to ECS Fargate requires complete re-architecture. Aurora Serverless for all databases changes pricing models significantly and may increase cost for consistently loaded staging RDS.
+
+---
+
+## Scenario 33: Domain 1 – Design Solutions for Organizational Complexity
+
+A company uses AWS Control Tower with 30 accounts. A new security requirement states: 
+1. All S3 bucket creation events must be logged to a central immutable audit log in a dedicated Security account. 
+2. Any S3 bucket without server-side encryption (SSE-S3 or SSE-KMS) must be automatically remediated within 5 minutes of creation. 
+3. The solution must apply to all current and future accounts automatically. 
+4. Security team must receive a daily digest report of all new unencrypted buckets found and remediated.
+
+**Question:** Which architecture satisfies all four requirements?
+
+* **A)** AWS Config rule `s3-bucket-server-side-encryption-enabled` in all accounts via StackSets; CloudTrail in all accounts sending to central S3 bucket; Lambda auto-remediation triggered by Config; SNS daily digest via Lambda scheduled CloudWatch Events.
+* **B)** Control Tower's mandatory guardrails (SCP-based) blocking unencrypted S3 bucket creation; CloudTrail organization trail to Security account; SNS for alerts; manual weekly report.
+* **C)** AWS Config with `s3-bucket-server-side-encryption-enabled` rule deployed via Control Tower Customizations (CfCT) (auto-applies to new accounts); AWS Config auto-remediation using SSM Automation document `AWS-EnableS3BucketEncryption` with 5-minute remediation delay; CloudTrail Organization Trail (from management account, covering all current + future accounts automatically) → logs to S3 in Security account with S3 Object Lock (WORM/immutable); AWS Security Hub aggregated in Security account collects Config findings; EventBridge Scheduled Rule (daily 6pm) → Lambda → queries Security Hub findings API for last 24hrs → sends digest via SES.
+* **D)** S3 Event Notifications to SQS for all bucket creation events; Lambda triggered by SQS to check encryption and remediate; CloudWatch Logs for audit; SNS for daily alerts.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **C** — CfCT-deployed Config rule + SSM auto-remediation + Organization Trail with S3 Object Lock + Security Hub + EventBridge/Lambda/SES digest.
+
+**Why it succeeds:**
+* **Req 1 (Central immutable audit log):** CloudTrail Organization Trail — configured once in the management account — automatically captures events from all current and future member accounts. S3 Object Lock in Governance or Compliance mode makes the audit log immutable (WORM) — satisfies immutability requirement for regulatory audit.
+* **Req 2 (Auto-remediation in 5 min):** AWS Config auto-remediation with SSM Automation `AWS-EnableS3BucketEncryption` fires when the rule evaluates NON_COMPLIANT. Config evaluation is triggered on configuration change (bucket creation) — remediation occurs within minutes (typically < 5 min for Config → SSM Automation execution time).
+* **Req 3 (All current + future accounts):** Control Tower Customizations (CfCT) uses Organizations integration to auto-deploy the Config rule to new accounts enrolled in Control Tower — no manual account-by-account deployment.
+* **Req 4 (Daily digest):** EventBridge Scheduled Rule (cron) → Lambda → `security_hub.get_findings()` API with date filter → aggregates findings → sends formatted email via SES.
+
+**Why alternatives fail:**
+* **A)** StackSets are correct for deployment but require manual triggering for new accounts unless using `SERVICE_MANAGED` deployment with Organizations integration. Doesn't address immutability of the audit log.
+* **B)** SCP-based guardrails prevent unencrypted bucket creation (deny the API call) — this is stronger but different from the requirement (detect and remediate within 5 minutes, implying detection of non-compliant buckets is expected, not prevention). SCP prevention would mean the bucket is never created — no remediation needed, but also no log of attempted creation. The requirement specifically says "automatically remediated," implying detection post-creation.
+* **D)** S3 Event Notifications only fire for events within an existing bucket (object creation, deletion) — not for S3 bucket creation events. Bucket creation events are in CloudTrail, not S3 event notifications. This architecture is fundamentally flawed.
+
+---
+
+## Scenario 34: Domain 5 – Continuous Improvement for Existing Solutions
+
+A company's Aurora PostgreSQL cluster is experiencing: 
+1. Read replica lag of 15–45 seconds during peak hours (application shows stale data). 
+2. A long-running analytics query (runtime: 20 minutes) is blocking OLTP operations. 
+3. The primary instance CPU is at 85% during peak. 
+4. Vacuum bloat — tables have significant dead tuple accumulation, causing sequential scans to slow. 
+5. Connection count is hitting Aurora's limit (5,000 connections) despite only 200 application pods.
+
+**Question:** Which improvements address all five issues systematically?
+
+* **A)** Add more read replicas; kill long-running analytics queries via `pg_cancel_backend`; upgrade instance class; run VACUUM FULL manually during maintenance windows; increase `max_connections` parameter.
+* **B)** Implement Aurora Auto Scaling for read replicas (adds replicas when replica lag exceeds threshold — directly addresses Issue 1); route analytics queries to a dedicated Aurora read replica with `aurora_read_replica_read_committed` isolation — isolating analytics from OLTP (Issue 2); upgrade primary to a larger instance class OR enable Aurora Serverless v2 for auto-scale (Issue 3); enable Aurora's autovacuum tuning — reduce `autovacuum_vacuum_scale_factor` to 0.01 and `autovacuum_cost_delay` to 2ms for aggressive dead tuple cleanup (Issue 4); deploy RDS Proxy in front of Aurora to multiplex 200 application pods' connections into a small pool (Issue 5).
+* **C)** Migrate analytics queries to Amazon Redshift; add ElastiCache Redis read-through cache for OLTP; enable Aurora parallel query; run `pg_repack` instead of VACUUM FULL; use connection pooling in the application.
+* **D)** Enable Multi-AZ; upgrade storage to io2; add 5 read replicas; configure PgBouncer on EC2; run VACUUM ANALYZE weekly.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — Aurora Auto Scaling + dedicated analytics replica + instance upgrade/Serverless v2 + autovacuum tuning + RDS Proxy.
+
+**Why it succeeds:**
+* **Issue 1 (Replica lag 15–45s):** Aurora Auto Scaling adds read replicas when `AuroraReplicaLag` CloudWatch metric exceeds a threshold — distributes read traffic across more replicas, reducing per-replica lag. This is the AWS-native solution for replica lag under read load.
+* **Issue 2 (Analytics blocking OLTP):** Routing the 20-minute analytics query to a dedicated read replica (isolated from the OLTP replica pool) prevents query interference. Aurora's replica isolation allows the analytics query to run without blocking OLTP reads on other replicas.
+* **Issue 3 (85% CPU):** Aurora Serverless v2 auto-scales ACUs in real-time — removes CPU saturation without manual instance resizing. Alternatively, upgrading instance class is a valid fix.
+* **Issue 4 (Vacuum bloat):** Aurora PostgreSQL supports autovacuum parameter tuning via the Parameter Group. Reducing `autovacuum_vacuum_scale_factor` from 0.2 (default) to 0.01 makes autovacuum trigger after 1% dead tuple accumulation (vs 20% default) — dramatically reducing bloat. `autovacuum_cost_delay` reduction makes autovacuum more aggressive.
+* **Issue 5 (5,000 connection limit):** RDS Proxy maintains a persistent pool of database connections (typically 100–200) and multiplexes thousands of application connections — reducing actual DB connections from 200 pods × 25 connections/pod = 5,000 to ~50–100 Proxy-held connections.
+
+**Why alternatives fail:**
+* **A)** Manually killing analytics queries is reactive, not systemic. VACUUM FULL requires exclusive table lock — it worsens OLTP performance during maintenance windows. Increasing `max_connections` increases per-connection memory overhead and can destabilize the instance.
+* **C)** Migrating to Redshift for analytics is a significant architectural change, not continuous improvement. PgBouncer on EC2 adds infrastructure management; RDS Proxy is the fully managed equivalent.
+* **D)** Multi-AZ addresses high availability, not performance. PgBouncer on EC2 is the self-managed alternative to RDS Proxy — higher operational overhead. Weekly VACUUM ANALYZE is insufficient for high write-rate tables.
+
+---
+
+## Scenario 35: Domain 3 – Migration Planning
+
+A company has 10TB of data in an on-premises Hadoop HDFS cluster (HBase, Hive tables, MapReduce jobs). They want to migrate to AWS for: 
+1. Cost reduction (current Hadoop cluster: $50K/month). 
+2. Eliminating cluster management. 
+3. Preserving the ability to run existing Hive queries without rewriting. 
+4. HBase use case: key-value lookups with < 10ms latency. 
+5. MapReduce jobs should run on-demand (not 24/7 cluster).
+
+**Question:** Which migration targets are correct for each component?
+
+* **A)** HDFS data → Amazon EFS; Hive → Athena; HBase → ElastiCache Redis; MapReduce → AWS Batch.
+* **B)** HDFS data → Amazon S3 (using S3DistCp or AWS DataSync for migration); Hive → Amazon Athena (Athena uses HiveQL — Hive queries run with minimal modification against S3 data via Glue Data Catalog); HBase → Amazon DynamoDB (key-value, sub-10ms reads with on-demand capacity); MapReduce → Amazon EMR (transient cluster — spin up on-demand, terminate after job completion; EMR supports native MapReduce and also allows Spark migration path).
+* **C)** HDFS → Amazon EBS; Hive → Amazon Redshift; HBase → Amazon RDS; MapReduce → AWS Lambda.
+* **D)** HDFS → S3; Hive → Amazon EMR with persistent Hive Metastore; HBase → Amazon DynamoDB; MapReduce → AWS Glue (PySpark).
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — S3 + Athena + DynamoDB + transient EMR.
+
+**Why it succeeds:**
+* **HDFS → S3:** S3 is the de facto replacement for HDFS in the cloud — infinitely scalable, 11 9s durability, no cluster management. S3DistCp (available on EMR) efficiently migrates HDFS data to S3 using distributed copy.
+* **Hive → Athena:** Athena uses Apache Hive DDL and HiveQL for queries against S3 data. The Glue Data Catalog serves as the Hive Metastore. Existing Hive queries work with minimal modification (S3 paths instead of HDFS paths). Serverless — no cluster management, pay-per-query.
+* **HBase → DynamoDB:** HBase is a key-value/columnar store on HDFS. DynamoDB is the AWS equivalent: single-digit millisecond reads, key-value and document model, fully managed, no cluster ops. Sub-10ms requirement satisfied by DynamoDB's consistent read performance.
+* **MapReduce → Transient EMR:** EMR supports native Hadoop MapReduce. Transient cluster (on-demand) eliminates 24/7 cluster cost. EMR cost = hours used × instance cost, vs $50K/month for a persistent Hadoop cluster.
+
+**Why alternatives fail:**
+* **A)** Amazon EFS is not a cost-effective or performance-appropriate replacement for HDFS (file-based, NFS protocol, not optimized for big data query patterns). ElastiCache Redis for HBase misses the key-value data model persistence guarantee — Redis is in-memory cache, not a primary database.
+* **C)** EBS is block storage for individual EC2 instances — not a shared storage replacement for HDFS. Redshift requires ETL to load Hive tables and is a different query paradigm. Lambda has 15-minute timeout — completely incompatible with MapReduce jobs (potentially hours).
+* **D)** Option D is close but misses the "transient" EMR emphasis for MapReduce. Also, Glue (PySpark) for MapReduce would require rewriting MapReduce jobs in PySpark — violates requirement 3's "without rewriting."
+
+---
+
+## Scenario 36: Domain 2 – Design for New Solutions
+
+A company is designing a serverless event processing system. Events come from 50 different source systems. Requirements: 
+1. Events from each source must be processed independently — one source's failures must not block others. 
+2. Each source may have different processing logic (50 different Lambda functions). 
+3. Events must be deduplicated — the same event from the same source delivered twice must be processed only once. 
+4. Failed events must be retried up to 3 times with exponential backoff, then moved to a DLQ for inspection. 
+5. Event processing order must be maintained per source.
+
+**Question:** Which architecture satisfies all five requirements?
+
+* **A)** Single SNS topic with 50 SQS queue subscriptions (one per source); Lambda triggered from each SQS queue; deduplication via DynamoDB idempotency table; DLQ per queue; SQS FIFO for ordering.
+* **B)** Amazon EventBridge with 50 event buses (one per source); EventBridge rules routing to source-specific Lambda functions; deduplication via Lambda Powertools Idempotency (DynamoDB); EventBridge retry policy (up to 185 attempts configurable); EventBridge DLQ (SQS) for failed events; ordering not guaranteed by EventBridge.
+* **C)** Amazon SQS FIFO queues (one per source — 50 queues); each queue triggers its dedicated Lambda function; SQS FIFO `MessageDeduplicationId` (content-based or producer-assigned) handles deduplication natively; Lambda `maxReceiveCount=3` on each queue's redrive policy → DLQ after 3 failures; SQS FIFO `MessageGroupId` = source identifier ensures ordering per group.
+* **D)** Amazon Kinesis Data Streams with 50 shards (one per source); Lambda consumer per shard; deduplication in Lambda code; retry via Kinesis bisect-on-error; DLQ via Lambda event source mapping destination.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **C** — SQS FIFO queues (one per source) + Lambda + native deduplication + redrive policy + DLQ.
+
+**Why it succeeds:**
+* **Req 1 (Independent processing):** 50 separate SQS FIFO queues — each source is completely isolated. A failure in source 1's queue has zero impact on source 2–50 queues.
+* **Req 2 (Different processing logic):** 50 dedicated Lambda functions, each triggered by its corresponding SQS FIFO queue event source mapping.
+* **Req 3 (Deduplication):** SQS FIFO natively deduplicates messages within a 5-minute deduplication window using `MessageDeduplicationId` (SHA-256 hash of message body for content-based deduplication). No external DynamoDB table required.
+* **Req 4 (Retry 3 times + DLQ):** SQS redrive policy: `maxReceiveCount=3` — after 3 failed processing attempts, the message is automatically moved to the configured dead-letter queue for inspection. Lambda's retry is managed by SQS visibility timeout + `maxReceiveCount`.
+* **Req 5 (Ordering per source):** SQS FIFO with `MessageGroupId` = source ID guarantees strict ordering within each group. SQS FIFO maintains FIFO order per message group.
+
+**Why alternatives fail:**
+* **A)** SQS standard queues (implied by "50 SQS queue subscriptions" to SNS) don't guarantee FIFO ordering — violates requirement 5. SNS fan-out adds unnecessary indirection for 50 fixed sources.
+* **B)** EventBridge does not guarantee event ordering — violates requirement 5. EventBridge retry semantics are complex and not equivalent to simple `maxReceiveCount`-based retry with exponential backoff.
+* **D)** Kinesis ordering is per-shard (not per partition key within a shard) — duplicate events in the same shard window cannot be natively deduplicated by Kinesis. Kinesis charges per shard-hour regardless of volume — cost inefficient for bursty/low-volume sources.
+
+---
+
+## Scenario 37: Domain 4 – Cost Control
+
+A media company streams video content globally. Their CloudFront distribution serves 5PB/month of video. The cost breakdown: 
+1. CloudFront data transfer out: $425,000/month (5PB × $0.085/GB average). 
+2. S3 GET requests for video segments: $65,000/month. 
+3. Origin Shield: not enabled. 
+4. Content is 80% cacheable (live streaming 20% dynamic). 
+5. The company has a reserved capacity commitment discussion ongoing with AWS.
+
+**Question:** Which combination of actions reduces CloudFront costs most effectively?
+
+* **A)** Compress all video segments with gzip; enable Lambda@Edge to optimize cache-hit ratio; negotiate a custom pricing agreement with AWS for volume discounts.
+* **B)** CloudFront Security Savings Bundle (commit to 1-year CloudFront usage → 30% discount on data transfer out); enable CloudFront Origin Shield (consolidates origin requests, reduces S3 GETs by ~75%); implement CloudFront Cache Policies with aggressive TTLs for static video segments (increase cache hit ratio from current baseline → reduce origin traffic); use S3 Intelligent-Tiering for video source files in S3.
+* **C)** Move video origin from S3 to EC2-based HTTP server; use Route 53 GeoDNS instead of CloudFront; implement a CDN from a third-party provider for cost arbitrage.
+* **D)** Reduce video quality/bitrate to reduce data transfer volume; implement HLS adaptive bitrate streaming; use CloudFront signed URLs to reduce unauthorized access bandwidth waste.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — CloudFront Security Savings Bundle + Origin Shield + Cache Policies.
+
+**Why it succeeds:**
+* **Data transfer cost ($425K):** The CloudFront Security Savings Bundle commits to a monthly CloudFront usage level for 1 year and provides a 30% discount on data transfer out + WAF included. At 5PB/month: $425K × 30% = $127.5K/month saving.
+* **S3 GET requests ($65K):** CloudFront Origin Shield adds a regional caching layer. For an 80% cacheable content ratio, Origin Shield can reduce origin requests by 70–80%. S3 GET costs: $65K × 75% reduction = $48.75K/month saving.
+* **Cache hit ratio improvement:** Cache Policies with long TTLs (86400s for video segments that never change once published) dramatically reduce origin fetches. Each avoided origin fetch saves both S3 GET costs and CloudFront origin request charges.
+* **Total estimated savings:** ~$176K/month (41% reduction).
+
+**Why alternatives fail:**
+* **A)** gzip compression of video content (already compressed MP4/HLS) yields no meaningful compression — video codecs are already at near-optimal compression ratios. Lambda@Edge for cache optimization adds latency and cost. Custom pricing negotiations are not an architecture decision.
+* **C)** Moving from S3 to EC2 for video serving adds operational overhead and EC2 costs that likely exceed S3. Third-party CDNs add integration complexity and vendor management overhead.
+* **D)** Reducing video quality directly degrades the user experience — not a viable business decision for a media streaming company. Signed URLs for access control don't reduce bandwidth from legitimate users, which is the primary cost driver.
+
+---
+
+## Scenario 38: Domain 5 – Continuous Improvement for Existing Solutions
+
+A company's CI/CD pipeline deploys to production using CodePipeline → CodeBuild → CodeDeploy. Problems: 
+1. Production deployments cause 3–5 minute outages during CodeDeploy in-place deployments. 
+2. Build times average 45 minutes — blocking developer velocity. 
+3. No automated testing — defects reach production weekly. 
+4. The team cannot roll back quickly when defects are found — rollback takes 30+ minutes. 
+5. Secrets (DB passwords, API keys) are hardcoded in `buildspec.yml` files in CodeCommit.
+
+**Question:** Which set of improvements resolves all five issues?
+
+* **A)** Switch to CodeDeploy Blue/Green; use ElasticCache for build caching; add manual approval gates; use AWS Systems Manager Parameter Store for secrets; implement CodePipeline manual rollback.
+* **B)** Switch CodeDeploy to Blue/Green deployment with ALB traffic shifting (linear or canary) — zero-downtime deployment, instant rollback by shifting traffic back to the original (blue) environment (Issues 1 and 4); implement CodeBuild caching (S3 or local cache for dependencies like Maven/npm packages — reduces build time by 50–70%) + CodeBuild fleet (reserved capacity for parallel builds) (Issue 2); add CodePipeline stage with CodeBuild test action running unit tests + SAST (Semgrep or SonarQube via CodeBuild) before deployment stage (Issue 3); migrate all secrets to AWS Secrets Manager — reference in `buildspec.yml` as `aws secretsmanager get-secret-value` calls or CodeBuild environment variables sourced from Secrets Manager (Issue 5).
+* **C)** Migrate entire CI/CD to GitHub Actions + ArgoCD on EKS; use HashiCorp Vault for secrets; implement Canary deployments; use parallel GitHub Actions jobs for build speed.
+* **D)** Use AWS Elastic Beanstalk with rolling deployments; implement AWS CodeStar for project management; use CloudFormation for all deployments; store secrets in S3 (encrypted with SSE-KMS).
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — Blue/Green + CodeBuild caching + automated test stage + Secrets Manager.
+
+**Why it succeeds:**
+* **Issue 1 (3–5 min outages):** CodeDeploy Blue/Green with ALB traffic shifting deploys to a new (green) target group while the original (blue) group continues serving traffic. ALB shifts traffic only after health checks pass — zero downtime.
+* **Issue 2 (45-min builds):** CodeBuild dependency caching to S3 stores Maven/npm/pip packages between builds. Cache hit rates of 80%+ reduce download time from external registries — typical build time reduction: 30–60%. CodeBuild Reserved Capacity (fleet) eliminates queue wait time.
+* **Issue 3 (No automated testing):** Adding a CodePipeline Test stage with CodeBuild actions running `mvn test`, `pytest`, or SAST tools before the Deploy stage blocks defective code from reaching production.
+* **Issue 4 (Slow rollback):** Blue/Green rollback = shifting ALB target group weights back to the original blue group — < 60 seconds. The original environment is preserved until the green deployment is verified.
+* **Issue 5 (Hardcoded secrets):** AWS Secrets Manager stores secrets encrypted with KMS. `buildspec.yml` references secrets via environment variables backed by Secrets Manager (using `SECRETS_MANAGER_VAR` syntax or `aws secretsmanager get-secret-value` in pre-build phase). No secrets in source code.
+
+**Why alternatives fail:**
+* **A)** SSM Parameter Store for secrets is valid (`SecureString` type) but Secrets Manager is preferred for rotating credentials (DB passwords, API keys) with automatic rotation support. The answer is otherwise partially correct but incomplete on build speed and testing.
+* **C)** Migrating the entire CI/CD stack to GitHub Actions + ArgoCD + HashiCorp Vault is a complete re-architecture — disproportionate to the requirement of improving an existing AWS CodePipeline setup.
+* **D)** Elastic Beanstalk with rolling deployments doesn't eliminate downtime for in-place scenarios. Storing secrets in S3 (even encrypted) is not the right pattern — S3 lacks secret rotation, access auditing per-secret, or programmatic secret version management.
+
+---
+
+## Scenario 39: Domain 1 – Design Solutions for Organizational Complexity
+
+A company manages AWS costs across 50 accounts in an Organization. The CFO requires: 
+1. Showback reports — each business unit sees only their accounts' costs. 
+2. Shared service costs (networking, security tooling) must be allocated proportionally to business units. 
+3. Budget alerts must trigger at 80% and 100% of each BU's quarterly budget and notify the BU's finance contact (different per BU). 
+4. All cost data must be queryable via SQL for custom reporting. 
+5. Reserved Instance and Savings Plan benefits must be shared across all accounts in the Organization.
+
+**Question:** Which architecture satisfies all five requirements?
+
+* **A)** AWS Cost Explorer per account; manual monthly cost allocation spreadsheets; SNS alerts for budgets; Athena for querying; RI sharing via Organization's consolidated billing.
+* **B)** AWS Cost and Usage Report (CUR) delivered to a central S3 bucket (consolidated, with resource-level tags including BU and CostCenter tags); AWS Glue crawler on CUR data → Athena for SQL querying (Req 4); AWS Cost Allocation Tags for BU-level showback; Cost Categories in Cost Explorer to group accounts by BU and allocate shared service costs proportionally using Cost Category split charge rules (Req 2); AWS Budgets per BU (account-level or tag-based) with Budget Actions (SNS notification → Lambda → looks up BU finance contact in DynamoDB → sends email via SES) (Req 3); RI and SP sharing via Organization's consolidated billing (Req 5).
+* **C)** QuickSight with Cost Explorer data source per BU; manual RI purchasing in management account; SNS topics per BU for budget alerts; CloudWatch dashboards for cost visibility.
+* **D)** Third-party FinOps tool (CloudHealth, Apptio); AWS Cost Explorer APIs; per-account Budgets with SNS; consolidated billing for RI sharing.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — CUR + Glue/Athena + Cost Categories + AWS Budgets + SNS/Lambda/SES.
+
+**Why it succeeds:**
+* **Req 1 (Showback per BU):** AWS Cost Allocation Tags applied to all resources (automatically via Tag Policies in Organizations) enable BU-level cost attribution in CUR. Cost Explorer can filter by tag for showback reporting per BU.
+* **Req 2 (Shared cost allocation):** Cost Categories with split charge rules allocate shared service costs (e.g., networking account: $50K/month) proportionally to BUs based on their percentage of total usage — natively supported in Cost Explorer Cost Categories.
+* **Req 3 (BU-specific budget alerts):** AWS Budgets configured per BU (cost filter by account or tag) with 80% and 100% thresholds → SNS notification → Lambda → queries DynamoDB for BU finance contact email → SES delivery. Lambda enables per-BU custom notification routing.
+* **Req 4 (SQL queryability):** CUR → S3 → Glue crawler → Athena provides full SQL access to line-item cost data including tags, resource IDs, service names, usage types — the most granular cost data available in AWS.
+* **Req 5 (RI/SP sharing):** AWS Organization consolidated billing automatically shares RI and Savings Plan discounts across all member accounts — the purchasing account's discount applies to the entire Organization.
+
+**Why alternatives fail:**
+* **A)** Manual spreadsheets for shared cost allocation fail requirement 2 (no automation, error-prone). Per-account Cost Explorer doesn't aggregate for Organization-level showback.
+* **C)** QuickSight with Cost Explorer as a data source provides visualization but Cost Explorer data is pre-aggregated — it doesn't provide the line-item granularity of CUR for custom SQL queries. Manual RI purchasing doesn't address shared cost allocation.
+* **D)** Third-party FinOps tools add cost and vendor dependency — all five requirements are solvable with AWS-native services. The exam tests AWS-native solutions.
+
+---
+
+## Scenario 40: Domain 2 – Design for New Solutions
+
+A startup is building a real-time collaborative document editing platform (similar to Google Docs) on AWS. Requirements: 
+1. < 50ms latency for change propagation between users editing the same document. 
+2. Support 10,000 concurrent editing sessions. 
+3. Document state must be durable — no data loss even if a server fails mid-edit. 
+4. The platform must support operational transformation (OT) or CRDT-based conflict resolution — the server must sequence concurrent edits. 
+5. Cost must scale near-zero when document traffic is low.
+
+**Question:** Which architecture best satisfies all constraints?
+
+* **A)** WebSocket connections to EC2 instances with Auto Scaling; DynamoDB for document state; ElastiCache Redis pub/sub for change propagation; S3 for document snapshots; Lambda for OT conflict resolution.
+* **B)** API Gateway WebSocket API → Lambda (connection handler); Amazon ElastiCache Redis (pub/sub channels per document — propagates edits to all connected clients subscribing to the document channel); DynamoDB (stores document state with conditional writes for optimistic concurrency — each edit is a conditional update on the document version); DynamoDB Streams → Lambda for OT/CRDT conflict resolution (sequences concurrent edits by timestamp + version); S3 for periodic document snapshots (durability); API Gateway WebSocket supports 10K concurrent connections per API with Regional deployment.
+* **C)** AWS AppSync (GraphQL subscriptions) for real-time updates; Aurora PostgreSQL for document state; Redis for pub/sub; Lambda for conflict resolution; CloudFront for WebSocket acceleration.
+* **D)** Amazon IVS (Interactive Video Service) for real-time streaming; DynamoDB for document state; EventBridge for change propagation; Step Functions for conflict resolution.
+
+### Architectural Decision Record (Resolution)
+
+**Optimal Solution:** **B** — API Gateway WebSocket + Lambda + ElastiCache Redis pub/sub + DynamoDB conditional writes + Streams.
+
+**Why it succeeds:**
+* **Req 1 (< 50ms latency):** API Gateway WebSocket API maintains persistent WebSocket connections. ElastiCache Redis pub/sub delivers messages to subscribers in < 1ms within the same region. End-to-end latency (client → API GW → Lambda → Redis pub/sub → subscriber Lambda → client) is typically 10–30ms within a region.
+* **Req 2 (10K concurrent sessions):** API Gateway WebSocket API supports up to 128K concurrent connections per API (Regional). Lambda scales concurrently per connection message.
+* **Req 3 (Durability):** DynamoDB provides 11 9s durability with synchronous Multi-AZ replication. Every edit is persisted to DynamoDB before acknowledgment. S3 snapshots provide point-in-time recovery.
+* **Req 4 (OT/CRDT conflict resolution):** DynamoDB conditional writes (`ConditionExpression: version = :expected_version`) implement optimistic concurrency — concurrent conflicting edits are serialized. DynamoDB Streams captures the ordered sequence of writes; Lambda processes the stream to apply OT/CRDT logic and publish the resolved state.
+* **Req 5 (Scale to zero):** API Gateway + Lambda charge per connection/message. ElastiCache Redis has a minimum node cost, but the smallest `cache.t4g.micro` is ~$12/month. DynamoDB on-demand scales to zero. Near-zero cost at low traffic.
+
+**Why alternatives fail:**
+* **A)** EC2-based WebSocket servers require always-on instances — violates requirement 5 (scale to zero). At 10K concurrent sessions, EC2 instances must be pre-provisioned. Auto Scaling doesn't scale to zero.
+* **C)** AWS AppSync GraphQL subscriptions are built on WebSockets and can work, but AppSync adds GraphQL overhead and is less cost-efficient for high-frequency binary/delta change propagation. Aurora PostgreSQL for document state is more expensive than DynamoDB for high-write, key-value access patterns.
+* **D)** Amazon IVS is for live video streaming — completely inappropriate for document collaboration. EventBridge is not a real-time low-latency pub/sub mechanism (EventBridge has ~1 second delivery SLA, not sub-50ms).
