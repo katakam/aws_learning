@@ -7517,5 +7517,198 @@ h3.has-note { border-left: 4px solid #f0ad4e; padding-left: 8px; background: lin
 })();
 </script>
 
+<!-- ── Section Navigation + Scroll Memory ─────────────────────── -->
+<style>
+#nav-toggle-btn {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1600;
+  background: #003366;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 13px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+#nav-toggle-btn:hover { background: #004499; }
+
+#nav-sidebar {
+  position: fixed;
+  top: 0;
+  left: -310px;
+  width: 300px;
+  height: 100vh;
+  background: #1b2838;
+  color: #c6d4df;
+  z-index: 1500;
+  overflow-y: auto;
+  transition: left 0.28s ease;
+  box-shadow: 3px 0 14px rgba(0,0,0,0.45);
+  padding: 52px 0 20px;
+  box-sizing: border-box;
+}
+#nav-sidebar.open { left: 0; }
+
+#nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(0,0,0,0.25);
+}
+#nav-backdrop.open { display: block; }
+
+#nav-sidebar .nav-domain {
+  padding: 10px 16px 4px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #4da6ff;
+  border-top: 1px solid #2a3a4a;
+  margin-top: 6px;
+}
+#nav-sidebar .nav-domain:first-child { border-top: none; margin-top: 0; }
+#nav-sidebar a {
+  display: block;
+  padding: 5px 16px 5px 20px;
+  color: #c6d4df;
+  text-decoration: none;
+  font-size: 12px;
+  line-height: 1.4;
+  border-left: 3px solid transparent;
+  transition: background 0.12s;
+}
+#nav-sidebar a:hover { background: #273849; color: #fff; }
+#nav-sidebar a.nav-active {
+  background: #1e3a5f;
+  color: #fff;
+  border-left-color: #4da6ff;
+}
+
+#scroll-resume-toast {
+  display: none;
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #003366;
+  color: #fff;
+  padding: 10px 22px;
+  border-radius: 6px;
+  z-index: 3000;
+  font-size: 13px;
+  font-family: Arial, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  white-space: nowrap;
+}
+#scroll-resume-toast:hover { background: #0050aa; }
+</style>
+
+<button id="nav-toggle-btn" title="Navigate to section">&#9776;</button>
+<div id="nav-backdrop"></div>
+<div id="nav-sidebar"></div>
+<div id="scroll-resume-toast">&#8617; Resume where you left off &nbsp;<small>(click to go)</small></div>
+
+<script>
+(function () {
+  var SCROLL_KEY = 'aws_scroll_pos';
+  var sidebar   = document.getElementById('nav-sidebar');
+  var toggleBtn = document.getElementById('nav-toggle-btn');
+  var backdrop  = document.getElementById('nav-backdrop');
+  var toast     = document.getElementById('scroll-resume-toast');
+
+  /* Build sidebar from h3[id] headings */
+  var headings = Array.from(document.querySelectorAll('h3[id]'));
+  var domainMap   = {};
+  var domainOrder = [];
+
+  headings.forEach(function (h3) {
+    var id   = h3.id;
+    var text = h3.textContent.trim();
+    var dm   = id.match(/domain-(\d+)/);
+    var dNum = dm ? dm[1] : '0';
+
+    if (!domainMap[dNum]) {
+      var dlm    = text.match(/Domain\s+\d+\s*[–\-]\s*(.+)/i);
+      var dLabel = dlm ? 'Domain ' + dNum + ' \u2013 ' + dlm[1].trim() : 'Domain ' + dNum;
+      domainMap[dNum] = { label: dLabel, items: [] };
+      domainOrder.push(dNum);
+    }
+
+    var scMatch    = text.match(/^(Scenario\s+\d+)/i);
+    var shortLabel = scMatch ? scMatch[1] : text.substring(0, 28);
+    domainMap[dNum].items.push({ id: id, label: shortLabel });
+  });
+
+  var html = '';
+  domainOrder.forEach(function (dNum) {
+    var grp = domainMap[dNum];
+    html += '<div class="nav-domain">' + grp.label.replace(/[<>&]/g, '') + '</div>';
+    grp.items.forEach(function (item) {
+      html += '<a href="#' + item.id + '" data-navid="' + item.id + '">'
+            + item.label.replace(/[<>&]/g, '') + '</a>';
+    });
+  });
+  sidebar.innerHTML = html;
+
+  /* Toggle open/close */
+  function openNav()  { sidebar.classList.add('open');    backdrop.classList.add('open');    toggleBtn.textContent = '\u2715'; }
+  function closeNav() { sidebar.classList.remove('open'); backdrop.classList.remove('open'); toggleBtn.innerHTML   = '&#9776;'; }
+
+  toggleBtn.addEventListener('click', function () {
+    sidebar.classList.contains('open') ? closeNav() : openNav();
+  });
+  backdrop.addEventListener('click', closeNav);
+  sidebar.querySelectorAll('a').forEach(function (a) {
+    a.addEventListener('click', closeNav);
+  });
+
+  /* Active link via IntersectionObserver */
+  var activeLink = null;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        var link = sidebar.querySelector('a[data-navid="' + entry.target.id + '"]');
+        if (link && link !== activeLink) {
+          if (activeLink) activeLink.classList.remove('nav-active');
+          activeLink = link;
+          activeLink.classList.add('nav-active');
+          activeLink.scrollIntoView({ block: 'nearest' });
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -70% 0px' });
+
+  headings.forEach(function (h3) { io.observe(h3); });
+
+  /* Scroll position memory */
+  var scrollTimer = null;
+  window.addEventListener('scroll', function () {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(function () {
+      localStorage.setItem(SCROLL_KEY, String(Math.round(window.scrollY)));
+    }, 250);
+  }, { passive: true });
+
+  /* Restore on load */
+  var savedY = parseInt(localStorage.getItem(SCROLL_KEY) || '0', 10);
+  if (savedY > 300) {
+    toast.style.display = 'block';
+    var toastTimer = setTimeout(function () { toast.style.display = 'none'; }, 8000);
+    toast.addEventListener('click', function () {
+      clearTimeout(toastTimer);
+      toast.style.display = 'none';
+      window.scrollTo({ top: savedY, behavior: 'smooth' });
+    });
+  }
+})();
+</script>
+
 </body>
 </html>
