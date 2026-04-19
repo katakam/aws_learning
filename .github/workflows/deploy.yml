@@ -26,6 +26,9 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Set index
+        run: cp README.html index.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
