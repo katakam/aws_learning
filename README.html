@@ -7222,10 +7222,7 @@ replacement.</li>
 }
 .scenario-notes-toggle:hover { background: #d0d0d0; }
 .scenario-notes-toggle.has-note { background: #fff3cd; border-color: #f0ad4e; color: #856404; font-weight: bold; }
-.scenario-note-area {
-  display: none;
-  margin: 6px 0 16px 0;
-}
+.scenario-note-area { display: none; margin: 6px 0 16px 0; }
 .scenario-note-area textarea {
   width: 100%;
   min-height: 80px;
@@ -7240,57 +7237,283 @@ replacement.</li>
 }
 .scenario-note-area textarea:focus { outline: none; border-color: #d4870a; box-shadow: 0 0 0 2px rgba(240,173,78,0.25); }
 h3.has-note { border-left: 4px solid #f0ad4e; padding-left: 8px; background: linear-gradient(90deg, #fff9e6 0%, transparent 60%); }
+
+#gist-setup {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+#gist-status {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: #e8e8e8;
+  color: #555;
+  pointer-events: none;
+}
+#gist-status.synced { background: #d4edda; color: #155724; }
+#gist-status.syncing { background: #fff3cd; color: #856404; }
+#gist-status.error { background: #f8d7da; color: #721c24; }
+#gist-config-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+}
+#gist-modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+#gist-modal-overlay.open { display: flex; }
+#gist-modal {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 24px;
+  width: 380px;
+  max-width: 95vw;
+  font-size: 13px;
+}
+#gist-modal h4 { margin: 0 0 12px; font-size: 15px; }
+#gist-modal label { display: block; margin-bottom: 4px; font-weight: bold; }
+#gist-modal input {
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+#gist-modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+#gist-modal button {
+  padding: 6px 14px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#gist-modal #gist-save-btn { background: #003366; color: #fff; border-color: #003366; }
+#gist-modal-msg { color: #721c24; font-size: 12px; margin-bottom: 8px; min-height: 16px; }
 </style>
+
+<div id="gist-setup">
+  <div id="gist-status">⚙ not configured</div>
+  <button id="gist-config-btn">🔑 Gist Sync</button>
+</div>
+
+<div id="gist-modal-overlay">
+  <div id="gist-modal">
+    <h4>GitHub Gist Sync</h4>
+    <p style="margin:0 0 12px;color:#555">Create a <a href="https://github.com/settings/tokens/new?scopes=gist&description=aws-notes" target="_blank">PAT with <code>gist</code> scope</a>, paste it below. A private gist will be created automatically to store your notes.</p>
+    <label>Personal Access Token</label>
+    <input type="password" id="gist-pat-input" placeholder="ghp_…" />
+    <label>Gist ID <span style="font-weight:normal;color:#888">(auto-filled after first save)</span></label>
+    <input type="text" id="gist-id-input" placeholder="leave blank to create new" />
+    <div id="gist-modal-msg"></div>
+    <div class="btn-row">
+      <button id="gist-cancel-btn">Cancel</button>
+      <button id="gist-save-btn">Save &amp; Sync</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function() {
-  var h3s = document.querySelectorAll('h3[id]');
-  h3s.forEach(function(h3) {
-    var id = h3.id;
-    var storageKey = 'note_' + id;
+  var PAT_KEY = 'gist_pat';
+  var ID_KEY  = 'gist_id';
+  var FILENAME = 'aws-notes.json';
 
-    var toggle = document.createElement('button');
-    toggle.className = 'scenario-notes-toggle';
-    toggle.textContent = '📝 Note';
+  var notes = {};       // in-memory store { scenarioId: text }
+  var saveTimer = null;
 
-    var noteArea = document.createElement('div');
-    noteArea.className = 'scenario-note-area';
+  // ── Status indicator ──────────────────────────────────────────
+  var statusEl = document.getElementById('gist-status');
+  function setStatus(state, text) {
+    statusEl.className = state;
+    statusEl.textContent = text;
+  }
 
-    var textarea = document.createElement('textarea');
-    textarea.placeholder = 'Add your notes for this scenario…';
-    noteArea.appendChild(textarea);
+  // ── GitHub Gist API helpers ───────────────────────────────────
+  function apiHeaders(pat) {
+    return { 'Authorization': 'token ' + pat, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' };
+  }
 
-    function applyNoteState(val) {
-      if (val && val.trim()) {
-        toggle.classList.add('has-note');
-        toggle.textContent = '📝 Note ✓';
-        h3.classList.add('has-note');
-      } else {
-        toggle.classList.remove('has-note');
-        toggle.textContent = '📝 Note';
-        h3.classList.remove('has-note');
+  async function fetchNotes(pat, gistId) {
+    var res = await fetch('https://api.github.com/gists/' + gistId, { headers: apiHeaders(pat) });
+    if (!res.ok) throw new Error('Fetch failed ' + res.status);
+    var data = await res.json();
+    return JSON.parse(data.files[FILENAME].content || '{}');
+  }
+
+  async function patchNotes(pat, gistId, data) {
+    var body = { files: {} };
+    body.files[FILENAME] = { content: JSON.stringify(data, null, 2) };
+    var res = await fetch('https://api.github.com/gists/' + gistId, {
+      method: 'PATCH', headers: apiHeaders(pat), body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Patch failed ' + res.status);
+  }
+
+  async function createGist(pat) {
+    var body = { description: 'AWS Learning Notes', public: false, files: {} };
+    body.files[FILENAME] = { content: '{}' };
+    var res = await fetch('https://api.github.com/gists', {
+      method: 'POST', headers: apiHeaders(pat), body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Create failed ' + res.status);
+    var data = await res.json();
+    return data.id;
+  }
+
+  // ── Debounced sync ────────────────────────────────────────────
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(syncToGist, 1500);
+  }
+
+  async function syncToGist() {
+    var pat    = localStorage.getItem(PAT_KEY);
+    var gistId = localStorage.getItem(ID_KEY);
+    if (!pat || !gistId) return;
+    setStatus('syncing', '↑ saving…');
+    try {
+      await patchNotes(pat, gistId, notes);
+      setStatus('synced', '✓ synced');
+    } catch(e) {
+      setStatus('error', '✗ sync error');
+    }
+  }
+
+  // ── Build note UI per scenario ────────────────────────────────
+  function applyNoteState(h3, toggle, val) {
+    if (val && val.trim()) {
+      toggle.classList.add('has-note');
+      toggle.textContent = '📝 Note ✓';
+      h3.classList.add('has-note');
+    } else {
+      toggle.classList.remove('has-note');
+      toggle.textContent = '📝 Note';
+      h3.classList.remove('has-note');
+    }
+  }
+
+  function buildNoteWidgets(allNotes) {
+    document.querySelectorAll('h3[id]').forEach(function(h3) {
+      var id = h3.id;
+      // avoid double-insert on re-init
+      if (h3.nextSibling && h3.nextSibling.classList && h3.nextSibling.classList.contains('scenario-notes-toggle')) return;
+
+      var toggle = document.createElement('button');
+      toggle.className = 'scenario-notes-toggle';
+
+      var noteArea = document.createElement('div');
+      noteArea.className = 'scenario-note-area';
+
+      var textarea = document.createElement('textarea');
+      textarea.placeholder = 'Add your notes for this scenario…';
+      noteArea.appendChild(textarea);
+
+      var val = (allNotes && allNotes[id]) || '';
+      notes[id] = val;
+      textarea.value = val;
+      applyNoteState(h3, toggle, val);
+
+      toggle.addEventListener('click', function() {
+        var visible = noteArea.style.display === 'block';
+        noteArea.style.display = visible ? 'none' : 'block';
+        if (!visible) textarea.focus();
+      });
+
+      textarea.addEventListener('input', function() {
+        notes[id] = textarea.value;
+        applyNoteState(h3, toggle, textarea.value);
+        scheduleSave();
+      });
+
+      h3.parentNode.insertBefore(toggle, h3.nextSibling);
+      h3.parentNode.insertBefore(noteArea, toggle.nextSibling);
+    });
+  }
+
+  // ── Init: load from Gist or fall back to localStorage ────────
+  async function init() {
+    var pat    = localStorage.getItem(PAT_KEY);
+    var gistId = localStorage.getItem(ID_KEY);
+
+    if (pat && gistId) {
+      setStatus('syncing', '↓ loading…');
+      try {
+        var remote = await fetchNotes(pat, gistId);
+        buildNoteWidgets(remote);
+        setStatus('synced', '✓ synced');
+        return;
+      } catch(e) {
+        setStatus('error', '✗ load error');
       }
     }
+    // no gist configured — build widgets empty
+    buildNoteWidgets({});
+    setStatus('', '⚙ not configured');
+  }
 
-    var saved = localStorage.getItem(storageKey) || '';
-    textarea.value = saved;
-    applyNoteState(saved);
+  // ── Config modal ──────────────────────────────────────────────
+  var overlay    = document.getElementById('gist-modal-overlay');
+  var patInput   = document.getElementById('gist-pat-input');
+  var idInput    = document.getElementById('gist-id-input');
+  var msgEl      = document.getElementById('gist-modal-msg');
+  var configBtn  = document.getElementById('gist-config-btn');
+  var cancelBtn  = document.getElementById('gist-cancel-btn');
+  var saveBtn    = document.getElementById('gist-save-btn');
 
-    toggle.addEventListener('click', function() {
-      var visible = noteArea.style.display === 'block';
-      noteArea.style.display = visible ? 'none' : 'block';
-      if (!visible) textarea.focus();
-    });
-
-    textarea.addEventListener('input', function() {
-      localStorage.setItem(storageKey, textarea.value);
-      applyNoteState(textarea.value);
-    });
-
-    // Insert after the h3
-    h3.parentNode.insertBefore(toggle, h3.nextSibling);
-    h3.parentNode.insertBefore(noteArea, toggle.nextSibling);
+  configBtn.addEventListener('click', function() {
+    patInput.value = localStorage.getItem(PAT_KEY) || '';
+    idInput.value  = localStorage.getItem(ID_KEY)  || '';
+    msgEl.textContent = '';
+    overlay.classList.add('open');
   });
+  cancelBtn.addEventListener('click', function() { overlay.classList.remove('open'); });
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.classList.remove('open'); });
+
+  saveBtn.addEventListener('click', async function() {
+    var pat = patInput.value.trim();
+    if (!pat) { msgEl.textContent = 'PAT is required.'; return; }
+    msgEl.textContent = '';
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Working…';
+
+    try {
+      var gistId = idInput.value.trim();
+      if (!gistId) {
+        gistId = await createGist(pat);
+        idInput.value = gistId;
+      }
+      // push current in-memory notes up
+      await patchNotes(pat, gistId, notes);
+      localStorage.setItem(PAT_KEY, pat);
+      localStorage.setItem(ID_KEY, gistId);
+      setStatus('synced', '✓ synced');
+      overlay.classList.remove('open');
+    } catch(e) {
+      msgEl.textContent = 'Error: ' + e.message + '. Check your PAT and try again.';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save & Sync';
+    }
+  });
+
+  init();
 })();
 </script>
 
