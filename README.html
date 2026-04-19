@@ -7206,5 +7206,93 @@ replacement.</li>
 </ul>
 </details>
 </div>
+
+<style>
+.scenario-notes-toggle {
+  display: inline-block;
+  margin: 8px 0 4px 0;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #e8e8e8;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  color: #333;
+  user-select: none;
+}
+.scenario-notes-toggle:hover { background: #d0d0d0; }
+.scenario-notes-toggle.has-note { background: #fff3cd; border-color: #f0ad4e; color: #856404; font-weight: bold; }
+.scenario-note-area {
+  display: none;
+  margin: 6px 0 16px 0;
+}
+.scenario-note-area textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  font-size: 13px;
+  font-family: Arial, sans-serif;
+  border: 1px solid #f0ad4e;
+  border-radius: 3px;
+  background: #fffdf0;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.scenario-note-area textarea:focus { outline: none; border-color: #d4870a; box-shadow: 0 0 0 2px rgba(240,173,78,0.25); }
+h3.has-note { border-left: 4px solid #f0ad4e; padding-left: 8px; background: linear-gradient(90deg, #fff9e6 0%, transparent 60%); }
+</style>
+
+<script>
+(function() {
+  var h3s = document.querySelectorAll('h3[id]');
+  h3s.forEach(function(h3) {
+    var id = h3.id;
+    var storageKey = 'note_' + id;
+
+    var toggle = document.createElement('button');
+    toggle.className = 'scenario-notes-toggle';
+    toggle.textContent = '📝 Note';
+
+    var noteArea = document.createElement('div');
+    noteArea.className = 'scenario-note-area';
+
+    var textarea = document.createElement('textarea');
+    textarea.placeholder = 'Add your notes for this scenario…';
+    noteArea.appendChild(textarea);
+
+    function applyNoteState(val) {
+      if (val && val.trim()) {
+        toggle.classList.add('has-note');
+        toggle.textContent = '📝 Note ✓';
+        h3.classList.add('has-note');
+      } else {
+        toggle.classList.remove('has-note');
+        toggle.textContent = '📝 Note';
+        h3.classList.remove('has-note');
+      }
+    }
+
+    var saved = localStorage.getItem(storageKey) || '';
+    textarea.value = saved;
+    applyNoteState(saved);
+
+    toggle.addEventListener('click', function() {
+      var visible = noteArea.style.display === 'block';
+      noteArea.style.display = visible ? 'none' : 'block';
+      if (!visible) textarea.focus();
+    });
+
+    textarea.addEventListener('input', function() {
+      localStorage.setItem(storageKey, textarea.value);
+      applyNoteState(textarea.value);
+    });
+
+    // Insert after the h3
+    h3.parentNode.insertBefore(toggle, h3.nextSibling);
+    h3.parentNode.insertBefore(noteArea, toggle.nextSibling);
+  });
+})();
+</script>
+
 </body>
 </html>
