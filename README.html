@@ -170,8 +170,80 @@
     }
     .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
+  <style>
+    .dark-mode-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      padding: 8px 12px;
+      background-color: #003366;
+      color: white;
+      border: 2px solid white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    html.dark-mode, html.dark-mode body {
+      background-color: #1a1a1a !important;
+      color: #e0e0e0 !important;
+    }
+    html.dark-mode .exam-container {
+      background-color: #2d2d2d !important;
+      border-color: #444 !important;
+      color: #e0e0e0 !important;
+    }
+    html.dark-mode .vue-header {
+      background-color: #001f3f !important;
+      border-bottom-color: #555 !important;
+    }
+    html.dark-mode h3 {
+      color: #bbdefb !important;
+    }
+    html.dark-mode details {
+      background-color: #333 !important;
+      border-color: #444 !important;
+      color: #e0e0e0 !important;
+    }
+    html.dark-mode summary {
+      color: #90caf9 !important;
+    }
+    html.dark-mode a {
+      color: #82b1ff !important;
+    }
+    html.dark-mode .question-prompt {
+      color: #e0e0e0 !important;
+    }
+    html.dark-mode .question-prompt strong {
+      color: #fff !important;
+    }
+  </style>
+  <script>
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      html.classList.toggle('dark-mode');
+      const isDark = html.classList.contains('dark-mode');
+      localStorage.setItem('darkModeFull', isDark);
+      updateToggleButton(isDark);
+    }
+    function updateToggleButton(isDark) {
+      const btn = document.querySelector('.dark-mode-toggle');
+      if (btn) {
+        btn.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      }
+    }
+    window.addEventListener('DOMContentLoaded', () => {
+      const isDark = localStorage.getItem('darkModeFull') === 'true';
+      if (isDark) {
+        document.documentElement.classList.add('dark-mode');
+      }
+      updateToggleButton(isDark);
+    });
+  </script>
 </head>
 <body>
+<button class="dark-mode-toggle" onclick="toggleDarkMode()">Dark Mode</button>
 <header id="title-block-header">
 <h1 class="title">AWS Certified Solutions Architect</h1>
 </header>
