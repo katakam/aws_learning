@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Network — Learning Graph</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#f4f2ee;font-family:'DM Mono',monospace;color:#1a1a1a}
+
+/* ── LAYOUT ── */
+#shell{display:flex;height:100vh;width:100vw}
+
+/* ── LEFT PANEL ── */
+#panel{
+  width:272px;min-width:272px;height:100vh;
+  background:#ffffff;border-right:2px solid #e0ddd8;
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:width 0.3s;z-index:20;
+}
+#panel.collapsed{width:0;min-width:0;border-right:none}
+
+#panel-head{
+  padding:16px 16px 10px;
+  border-bottom:2px solid #e8e5e0;flex-shrink:0;
+  background:#1a1a2e;
+}
+#panel-head h1{
+  font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:800;letter-spacing:-0.3px;
+  color:#ffffff;white-space:nowrap;
+}
+#panel-head p{font-size:0.58rem;color:#7a8090;margin-top:3px;white-space:nowrap}
+
+#search-wrap{padding:10px 12px;flex-shrink:0;border-bottom:1px solid #e8e5e0;background:#fafafa}
+#search{
+  width:100%;background:#ffffff;border:2px solid #d0cdc8;
+  border-radius:7px;padding:7px 10px;font-family:'DM Mono',monospace;font-size:0.65rem;
+  color:#1a1a1a;outline:none;transition:border-color 0.2s;
+}
+#search:focus{border-color:#2563eb}
+#search::placeholder{color:#a0a0a0}
+
+.sec-head{
+  font-size:0.55rem;letter-spacing:1.5px;text-transform:uppercase;
+  color:#9090a0;padding:10px 14px 4px;flex-shrink:0;
+  font-weight:500;
+}
+
+/* scenario pills */
+#scenarios{padding:0 10px 4px;flex-shrink:0}
+.sc-pill{
+  display:flex;align-items:center;gap:8px;width:100%;
+  padding:7px 10px;border-radius:7px;border:2px solid transparent;
+  font-family:'DM Mono',monospace;font-size:0.62rem;cursor:pointer;
+  margin-bottom:3px;transition:all 0.15s;background:transparent;text-align:left;
+  color:#3a3a4a;
+}
+.sc-pill:hover{background:#f0ede8;border-color:#d0cdc8;color:#1a1a1a}
+.sc-pill.active{border-color:currentColor;background:#f8f6ff;font-weight:500}
+.sc-icon{font-size:0.9rem;flex-shrink:0;line-height:1}
+.sc-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* group chips */
+#filters{padding:0 10px 6px;display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0}
+.f-chip{
+  font-family:'DM Mono',monospace;font-size:0.58rem;font-weight:500;
+  padding:3px 9px;border-radius:10px;border:2px solid;
+  cursor:pointer;transition:all 0.15s;background:transparent;
+}
+.f-chip.active{color:#ffffff!important;border-color:transparent!important}
+
+/* service list */
+#svc-list{flex:1;overflow-y:auto;padding:0 10px 10px}
+#svc-list::-webkit-scrollbar{width:4px}
+#svc-list::-webkit-scrollbar-track{background:#f4f2ee}
+#svc-list::-webkit-scrollbar-thumb{background:#c8c5c0;border-radius:2px}
+.svc-row{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  border-radius:6px;cursor:pointer;transition:background 0.12s;
+  font-size:0.62rem;color:#4a4a5a;
+}
+.svc-row:hover{background:#f0ede8;color:#1a1a1a}
+.svc-row.active{background:#e8f0fe;color:#1a1a1a;font-weight:500}
+.svc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:2px solid}
+.svc-name{flex:1}
+.svc-badge-sm{font-size:0.5rem;padding:1px 5px;border-radius:5px;background:#eeebe6;color:#7a7a8a}
+
+/* ── CANVAS ── */
+#canvas-area{flex:1;position:relative;overflow:hidden;background:#f4f2ee}
+canvas{position:absolute;inset:0;cursor:grab}
+canvas:active{cursor:grabbing}
+
+/* toggle panel */
+#toggle-panel{
+  position:absolute;top:12px;left:12px;z-index:30;
+  background:#ffffff;border:2px solid #d0cdc8;
+  border-radius:7px;padding:6px 11px;font-size:0.65rem;
+  color:#1a1a2e;cursor:pointer;font-family:'DM Mono',monospace;
+  transition:all 0.18s;font-weight:500;
+}
+#toggle-panel:hover{background:#f0ede8;border-color:#aaa}
+
+/* toolbar */
+#toolbar{
+  position:absolute;top:12px;right:12px;z-index:30;
+  display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;
+}
+.tb-btn{
+  background:#ffffff;border:2px solid #d0cdc8;
+  border-radius:7px;padding:5px 11px;font-size:0.6rem;
+  color:#5a5a6a;cursor:pointer;font-family:'DM Mono',monospace;
+  transition:all 0.15s;white-space:nowrap;font-weight:400;
+}
+.tb-btn:hover{color:#1a1a1a;border-color:#999}
+.tb-btn.on{color:#1a1a2e;border-color:#2563eb;background:#eff6ff;font-weight:500}
+
+/* info panel */
+#info{
+  position:absolute;bottom:0;left:0;right:0;z-index:25;
+  background:rgba(255,255,255,0.98);
+  border-top:2px solid #e0ddd8;
+  padding:16px 20px 14px;
+  transform:translateY(100%);transition:transform 0.25s;
+  pointer-events:none;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.08);
+}
+#info.show{transform:translateY(0);pointer-events:all}
+#info-inner{display:flex;gap:18px;align-items:flex-start;max-width:900px}
+#info-close{
+  position:absolute;top:12px;right:14px;
+  background:#f4f2ee;border:2px solid #d0cdc8;
+  border-radius:6px;padding:3px 9px;font-size:0.6rem;color:#5a5a6a;
+  cursor:pointer;font-family:'DM Mono',monospace;
+}
+#info-close:hover{background:#e8e5e0;color:#1a1a1a}
+#info-icon{font-size:2rem;flex-shrink:0;margin-top:2px;line-height:1}
+#info-body{flex:1}
+#info-name{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:2px;color:#1a1a1a}
+#info-type{font-size:0.58rem;text-transform:uppercase;letter-spacing:1px;color:#8080a0;margin-bottom:8px}
+#info-desc{font-size:0.65rem;color:#3a3a4a;line-height:1.7;margin-bottom:10px;max-width:600px}
+#info-rules{display:flex;flex-wrap:wrap;gap:5px}
+.info-badge{font-size:0.58rem;padding:3px 9px;border-radius:7px;font-weight:500;border:1.5px solid}
+
+/* legend */
+#legend{
+  position:absolute;bottom:14px;right:14px;z-index:30;
+  background:rgba(255,255,255,0.95);border:2px solid #e0ddd8;
+  border-radius:8px;padding:10px 13px;font-size:0.58rem;color:#7a7a8a;
+  pointer-events:none;
+}
+#legend > div{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+#legend > div:last-child{margin-bottom:0}
+.leg-line{width:24px;height:0}
+
+/* focus label */
+#focus-label{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  background:#1a1a2e;border:2px solid #2563eb;
+  border-radius:20px;padding:4px 16px;font-size:0.62rem;color:#ffffff;
+  pointer-events:none;opacity:0;transition:opacity 0.25s;z-index:25;
+  white-space:nowrap;font-weight:500;
+}
+#focus-label.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="shell">
+
+<!-- LEFT PANEL -->
+<div id="panel">
+  <div id="panel-head">
+    <h1>AWS Network Graph</h1>
+    <p>Click node · filter · search · learn</p>
+  </div>
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Search… subnet, TGW, NAT…" autocomplete="off">
+  </div>
+  <div class="sec-head">📚 Learning Scenarios</div>
+  <div id="scenarios"></div>
+  <div class="sec-head">🔬 Service Groups</div>
+  <div id="filters"></div>
+  <div class="sec-head">📋 All Services</div>
+  <div id="svc-list"></div>
+</div>
+
+<!-- CANVAS -->
+<div id="canvas-area">
+  <button id="toggle-panel">☰ Panel</button>
+  <div id="toolbar">
+    <button class="tb-btn" id="btn-reset">↺ Reset</button>
+    <button class="tb-btn on" id="btn-labels">Labels</button>
+    <button class="tb-btn on" id="btn-edges">Edges</button>
+    <button class="tb-btn on" id="btn-physics">Physics</button>
+  </div>
+  <canvas id="c"></canvas>
+  <div id="focus-label"></div>
+  <div id="legend">
+    <div><div class="leg-line" style="border-top:3px solid #1a1a2e"></div> Contains / inside</div>
+    <div><div class="leg-line" style="border-top:3px dashed #2563eb"></div> Associates / attaches</div>
+    <div><div class="leg-line" style="border-top:3px solid #d97706"></div> Routes traffic through</div>
+  </div>
+  <div id="info">
+    <button id="info-close">✕ close</button>
+    <div id="info-inner">
+      <div id="info-icon"></div>
+      <div id="info-body">
+        <div id="info-name"></div>
+        <div id="info-type"></div>
+        <div id="info-desc"></div>
+        <div id="info-rules"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ══════════════════════════════
+// CLEAN COLOR PALETTE
+// 5 distinct colors — all high contrast on white
+// chosen for deuteranopia/protanopia safety
+// ══════════════════════════════
+// NAVY   #1a1a2e  — Containment / structure
+// BLUE   #2563eb  — Connectivity
+// AMBER  #d97706  — Routing / Traffic path
+// SLATE  #475569  — Security
+// INDIGO #6d28d9  — Load Balancers
+// TEAL   #0d9488  — DNS / Edge / Compute
+
+const C = {
+  navy:   '#1a1a2e',
+  blue:   '#2563eb',
+  amber:  '#d97706',
+  slate:  '#475569',
+  indigo: '#6d28d9',
+  teal:   '#0d9488',
+};
+
+const NODES = [
+  {id:'internet', label:'Internet',       icon:'🌍', group:'edge',        color:C.teal,   r:28, tier:0,
+   type:'External Network',
+   desc:'The public internet. End-user traffic or on-premises traffic that has not yet entered the AWS network.',
+   rules:['Entry via IGW, CloudFront, or Global Accelerator','Exit via NAT Gateway (private subnets) or IGW (public subnets)']},
+
+  {id:'cf',       label:'CloudFront',     icon:'⚡', group:'edge',        color:C.teal,   r:26, tier:0,
+   type:'CDN / Edge',
+   desc:'Global content delivery network at 400+ edge Points of Presence. Caches content close to users, terminates TLS at the edge, and integrates with WAF for security.',
+   rules:['Global — not tied to a region','1 distribution can have many origins','Attach WAF WebACL globally (not regional)','Origins: S3, ALB, API Gateway, or custom HTTP']},
+
+  {id:'r53',      label:'Route 53',       icon:'🌐', group:'dns',         color:C.teal,   r:24, tier:0,
+   type:'DNS Service',
+   desc:'AWS managed DNS. Hosts public and private hosted zones. Supports routing policies: latency, geolocation, failover, weighted. Health checks trigger automatic DNS failover.',
+   rules:['Global service — no regional boundary','Private hosted zone associates with 1+ VPCs','Alias records point to AWS resources (ALB, CF, S3)','Health checks can trigger DNS-level failover']},
+
+  {id:'ga',       label:'Global\nAccelerator', icon:'🚀', group:'edge',   color:C.teal,   r:22, tier:0,
+   type:'Edge Accelerator',
+   desc:'Two static anycast IPs route user traffic to the nearest AWS edge PoP, then it travels the AWS private backbone to your endpoint. Not a CDN — no caching. Best for TCP/UDP apps needing global static IPs.',
+   rules:['2 static Anycast IPs (never change)','Endpoints: ALB, NLB, EC2, Elastic IP','Health-check based automatic failover','Improves latency vs pure internet routing']},
+
+  {id:'waf',      label:'WAF',            icon:'🛡️', group:'security',   color:C.slate,  r:20, tier:0,
+   type:'Layer 7 Firewall',
+   desc:'Web Application Firewall. Inspects HTTP/HTTPS requests. Rules block SQL injection, XSS, bad bots, rate limits, and IP-based threats. Attached to ALB, CloudFront, API Gateway, or AppSync.',
+   rules:['Attached to ALB / CloudFront / API Gateway','1 WebACL per protected resource','Managed rule groups available from AWS/marketplace','Regional WebACL or Global (CloudFront only)']},
+
+  {id:'apigw',    label:'API Gateway',    icon:'🔌', group:'edge',        color:C.teal,   r:22, tier:0,
+   type:'API Management',
+   desc:'Managed API front-door for REST, HTTP, and WebSocket APIs. Handles auth (Cognito, Lambda authoriser), throttling, and usage plans. VPC Link connects it to private NLB backends.',
+   rules:['Regional or edge-optimised (CloudFront backed)','VPC Link → NLB → private VPC resources','Attach WAF WebACL','1 API can have many stages (dev, prod)']},
+
+  {id:'region',   label:'Region',         icon:'🗺️', group:'containment', color:C.navy,   r:34, tier:1,
+   type:'AWS Geography',
+   desc:'A geographic cluster of AWS data centres. You choose which region to deploy in. Most services are regional — data does not leave a region unless you explicitly configure replication.',
+   rules:['33 regions worldwide (2024)','All VPCs live inside a region','AZs per region: typically 3-6','Global services: Route 53, IAM, CloudFront, Global Accelerator']},
+
+  {id:'vpc',      label:'VPC',            icon:'🏛️', group:'containment', color:C.navy,   r:30, tier:2,
+   type:'Virtual Private Cloud',
+   desc:'Your isolated private network inside AWS. You define the IP address range (CIDR block). It spans all AZs in the region. All resources you launch get private IPs from this CIDR.',
+   rules:['Up to 5 VPCs per region (soft limit, can increase)','Define CIDR e.g. 10.0.0.0/16','1 Internet Gateway max per VPC','1 Virtual Private Gateway max per VPC','Subnets carve up the VPC CIDR per AZ']},
+
+  {id:'az',       label:'AZ',             icon:'🏢', group:'containment', color:C.navy,   r:20, tier:2,
+   type:'Availability Zone',
+   desc:'A physically separate data centre within a region with independent power, cooling, and networking. Deploying across multiple AZs protects against single AZ failures.',
+   rules:['2-6 AZs per region','A subnet lives in exactly 1 AZ','Deploy in 2+ AZs for high availability','Approx 1-2ms latency between AZs in same region']},
+
+  {id:'subnet',   label:'Subnet',         icon:'📦', group:'containment', color:C.navy,   r:26, tier:3,
+   type:'Network Segment',
+   desc:'A subdivision of your VPC CIDR, scoped to exactly 1 AZ. Public subnets have a route to IGW. Private subnets do not. The subnet type is determined by its Route Table — not a flag on the subnet itself.',
+   rules:['Tied to exactly 1 AZ','Associates with exactly 1 Route Table','AWS reserves 5 IPs per subnet (first 4 + broadcast)','Min /28 (11 usable IPs) for TGW attachment subnets','Public = Route Table has 0.0.0.0/0 → IGW']},
+
+  {id:'rt',       label:'Route Table',    icon:'🗂️', group:'containment', color:C.navy,   r:22, tier:3,
+   type:'Routing Control',
+   desc:'Controls where traffic from a subnet is sent. Each entry maps a destination CIDR to a target (IGW, NAT GW, TGW, VGW, endpoint, peering connection). Longest prefix match wins.',
+   rules:['Each subnet associates with exactly 1 RT','1 RT can cover many subnets','VPC has 1 implicit main RT (default for unassociated subnets)','Local route (VPC CIDR) always present — cannot delete','Longest prefix match — more specific route wins']},
+
+  {id:'igw',      label:'IGW',            icon:'🌉', group:'containment', color:C.navy,   r:22, tier:3,
+   type:'Internet Gateway',
+   desc:'Attached to the VPC. Enables public subnets to communicate with the internet. Horizontally scaled and redundant — no bandwidth limit. Performs 1:1 NAT between public and private IPs.',
+   rules:['Exactly 1 per VPC','Attached to VPC — not to a subnet','Performs 1:1 NAT: public IP ↔ private IP','No bandwidth throttle — scales automatically','Subnet RT must also have 0.0.0.0/0 → IGW to be "public"']},
+
+  {id:'natgw',    label:'NAT Gateway',    icon:'🔄', group:'containment', color:C.navy,   r:22, tier:4,
+   type:'NAT Gateway',
+   desc:'Allows private subnet instances to initiate outbound internet connections. Blocks all inbound connections initiated from the internet. Must be deployed in a PUBLIC subnet with an Elastic IP.',
+   rules:['1 per AZ recommended for high availability','Must live in a public subnet','Requires 1 Elastic IP per NAT GW','Private subnet RT: 0.0.0.0/0 → NAT GW','Managed by AWS — HA within its AZ']},
+
+  {id:'sg',       label:'Security\nGroup', icon:'🔐', group:'security',   color:C.slate,  r:22, tier:4,
+   type:'Stateful Firewall (Instance)',
+   desc:'Instance-level stateful firewall applied to ENIs. Allow rules only — there are no deny rules. Return traffic is automatically allowed. Can reference other SGs as sources (e.g. allow traffic from the ALB SG).',
+   rules:['Up to 5 SGs per ENI','1 SG can protect many ENIs across the VPC','Stateful — return traffic auto-allowed','No explicit deny rules — only allow rules','Can reference other SGs as a source (not just IP ranges)']},
+
+  {id:'nacl',     label:'NACL',           icon:'📋', group:'security',    color:C.slate,  r:20, tier:4,
+   type:'Stateless Firewall (Subnet)',
+   desc:'Subnet-level stateless firewall. Rules are evaluated in ascending number order. Because it is stateless, you must explicitly allow BOTH inbound AND outbound traffic, including ephemeral/return ports (1024-65535).',
+   rules:['1 NACL per subnet (association)','1 NACL can cover many subnets','Stateless — must allow both directions separately','Rules evaluated from lowest number first','Common pattern: rule 100 allow, rule * deny']},
+
+  {id:'eni',      label:'ENI',            icon:'🔌', group:'containment', color:C.navy,   r:18, tier:5,
+   type:'Elastic Network Interface',
+   desc:'The virtual NIC for any resource inside a VPC. Holds the private IP address, MAC address, and Security Group associations. Every EC2, Lambda (VPC mode), RDS instance, NAT GW, and LB node has an ENI.',
+   rules:['Lives in exactly 1 subnet','Up to 5 Security Groups per ENI','Primary ENI cannot be detached from EC2','Can have multiple secondary private IPs','Can be moved between EC2 instances']},
+
+  {id:'ec2',      label:'EC2',            icon:'💻', group:'compute',     color:C.teal,   r:20, tier:5,
+   type:'Virtual Machine',
+   desc:'A virtual server in your subnet. Gets an ENI with a private IP from the subnet CIDR. Can also have a public IP (ephemeral) or Elastic IP (static). Security Groups control access at the ENI.',
+   rules:['1+ ENIs per instance','Must be in a subnet','Security Groups applied at ENI level','Elastic IP for static public address','Instance type determines network bandwidth cap']},
+
+  {id:'nfw',      label:'Network\nFirewall', icon:'🔥', group:'security',  color:C.slate,  r:24, tier:5,
+   type:'Managed Deep Packet Inspection',
+   desc:'AWS managed stateful + stateless firewall with deep packet inspection. Uses Suricata-compatible rules. Deployed as endpoints in dedicated subnets. Route tables MUST explicitly direct traffic through the NFW endpoint — it is not inline automatically.',
+   rules:['1 NFW endpoint per AZ (dedicated /28 subnet)','Route table explicitly routes traffic to NFW endpoint','Stateful AND stateless rule groups','Suricata-compatible IDS/IPS rules','Used in centralised hub-spoke inspection VPC architectures']},
+
+  {id:'eip',      label:'Elastic IP',     icon:'📌', group:'containment', color:C.navy,   r:16, tier:5,
+   type:'Static Public IPv4',
+   desc:'A static public IPv4 address allocated to your AWS account. Persists across instance stop/start. Associate it with an ENI or NAT Gateway. You are billed when it is allocated but NOT associated with a running resource.',
+   rules:['5 EIPs per region (soft limit)','1 EIP per NAT GW','Persists across instance stop/restart','Billed when not associated — release unused EIPs','Re-associate to different instances for failover']},
+
+  {id:'alb',      label:'ALB',            icon:'⚖️', group:'lb',          color:C.indigo, r:26, tier:4,
+   type:'Application Load Balancer — Layer 7',
+   desc:'Routes HTTP/HTTPS by host header, URL path, query strings, or HTTP headers. Supports WebSocket, HTTP/2, gRPC. Integrates with WAF and Cognito. Places 1 node per AZ subnet you select.',
+   rules:['Layer 7 — HTTP/HTTPS aware routing','1 node per AZ subnet (select min 2 AZs)','Listener → routing rules → target group','Cross-zone load balancing ON by default','Integrates WAF WebACL + Cognito auth']},
+
+  {id:'nlb',      label:'NLB',            icon:'⚡', group:'lb',          color:C.indigo, r:26, tier:4,
+   type:'Network Load Balancer — Layer 4',
+   desc:'Routes TCP/UDP/TLS traffic. Handles millions of requests per second. 1 static or Elastic IP per AZ node. Preserves client source IP address. Required backend for PrivateLink Endpoint Services.',
+   rules:['Layer 4 — TCP/UDP/TLS only','Static IP per AZ node (optionally assign EIP)','Cross-zone load balancing OFF by default','Required to back a PrivateLink Endpoint Service','Preserves source IP address to targets']},
+
+  {id:'gwlb',     label:'GWLB',           icon:'🔀', group:'lb',          color:C.indigo, r:22, tier:4,
+   type:'Gateway Load Balancer — Layer 3',
+   desc:'Transparent bump-in-the-wire for third-party appliances (firewalls, IDS/IPS). Uses GENEVE protocol (port 6081). A GWLB Endpoint sits in spoke subnets; route tables direct traffic through it to the appliance fleet.',
+   rules:['Layer 3 — transparent IP packet flow','GENEVE encapsulation on port 6081','GWLB Endpoint per subnet in spoke VPCs','Appliance fleet lives in dedicated inspection VPC','Route table must direct traffic to GWLB endpoint']},
+
+  {id:'tg',       label:'Target\nGroup',  icon:'🎯', group:'lb',          color:C.indigo, r:18, tier:5,
+   type:'Load Balancer Target Group',
+   desc:'The set of registered targets (backends) for a load balancer. Types: EC2 instance, ECS task, Lambda function, or IP address. Health checks run independently per target. A listener rule points traffic to a target group.',
+   rules:['1 target group per listener rule','Targets can be EC2, ECS, Lambda, or IP','Health checks per individual target','Target group can span AZs','Deregistration delay: 300 seconds default']},
+
+  {id:'tgw',      label:'Transit\nGateway', icon:'🔁', group:'connectivity', color:C.blue, r:30, tier:3,
+   type:'Regional Routing Hub',
+   desc:'A regional hub router. VPCs, VPN connections, and Direct Connect (via DX Gateway) all attach to it. Each attachment has one association (which TGW route table it reads from) and can propagate its routes into multiple TGW route tables. Shared cross-account via RAM.',
+   rules:['Up to 5000 attachments per TGW','1 TGW attachment per VPC per TGW','Each attachment → 1 TGW RT (association)','Routes can propagate into 1 or many TGW RTs','Share cross-account via Resource Access Manager (RAM)','Enables transitive routing between VPCs']},
+
+  {id:'tgwrt',    label:'TGW\nRoute Table', icon:'🗂️', group:'connectivity', color:C.blue, r:20, tier:4,
+   type:'TGW Route Table',
+   desc:'Controls how the TGW forwards traffic from each attachment. The Spoke RT has routes to the Inspection VPC only. The Egress RT has routes to DXGW/VPN. Separating these two tables forces all traffic through a central firewall — this is the key to hub-spoke inspection.',
+   rules:['Many TGW RTs per TGW','Attachment association is 1:1 per attachment','Route propagation is 1:N (one attachment into many RTs)','Static or BGP-propagated routes','Key pattern: Spoke RT + Egress RT enforces firewall inspection']},
+
+  {id:'tgwatt',   label:'TGW\nAttachment', icon:'🔗', group:'connectivity', color:C.blue, r:18, tier:4,
+   type:'TGW Attachment',
+   desc:'The logical link between TGW and a VPC (or VPN or DX Gateway). For VPC type: you choose 1 subnet per AZ — TGW places an ENI in those subnets. The subnet\'s own route table must then have a route pointing to TGW.',
+   rules:['1 per VPC per TGW','Choose 1 subnet per AZ (min /28 CIDR)','TGW places an ENI in chosen subnet','Subnet RT must have route → TGW attachment','Types: VPC, VPN, DXGW, TGW Peering']},
+
+  {id:'vgw',      label:'VGW',            icon:'🔑', group:'connectivity', color:C.blue,  r:20, tier:3,
+   type:'Virtual Private Gateway',
+   desc:'Attached to a VPC. The AWS-side termination point for Site-to-Site VPN tunnels and Direct Connect Private Virtual Interfaces. Enables on-premises traffic to reach a single VPC.',
+   rules:['Exactly 1 per VPC','Can attach and detach from VPC','Terminates VPN tunnels or DX Private VIF','BGP or static routing','For multi-VPC access use TGW + DXGW instead']},
+
+  {id:'vpn',      label:'VPN',            icon:'🔒', group:'connectivity', color:C.blue,  r:20, tier:3,
+   type:'Site-to-Site VPN',
+   desc:'IPsec encrypted tunnels over the public internet from your on-premises router to VGW or TGW. 2 tunnels per connection for redundancy. Can be used as a backup for Direct Connect.',
+   rules:['2 tunnels per VPN connection (for HA)','Connects to VGW (1 VPC) or TGW (many VPCs)','BGP or static routing','~1.25 Gbps max per tunnel','Use as DX backup — run both simultaneously']},
+
+  {id:'dx',       label:'Direct\nConnect', icon:'⚡', group:'connectivity', color:C.blue, r:24, tier:2,
+   type:'Direct Connect',
+   desc:'A dedicated private circuit from your data centre to AWS at a colocation facility (DX Location). Provides lower and more consistent latency than VPN over internet. No encryption by default — add MACsec or IPsec if needed.',
+   rules:['Dedicated port: 1G / 10G / 100G','Hosted connection via partner: 50Mbps to 10G','No encryption by default — add MACsec for L2 encryption','Private VIF → VGW, Transit VIF → DXGW → TGW','Resilience: two circuits from different providers + VPN backup']},
+
+  {id:'dxgw',     label:'DX Gateway',     icon:'🌐', group:'connectivity', color:C.blue,  r:22, tier:2,
+   type:'Direct Connect Gateway',
+   desc:'A global resource in your account. Allows one Direct Connect connection to reach multiple VGWs or TGWs across different regions and accounts. Transit VIF terminates on DXGW, which then connects to TGW.',
+   rules:['Global — not bound to a region','1 DXGW can connect to up to 10 VGWs or TGWs','Transit VIF terminates here (not directly on TGW)','Private VIF terminates on VGW','Multiple DXGWs allowed per account']},
+
+  {id:'peer',     label:'VPC Peering',    icon:'🤝', group:'connectivity', color:C.blue,  r:20, tier:3,
+   type:'VPC Peering Connection',
+   desc:'A direct 1:1 encrypted link between two VPCs. Works same account, cross-account, or cross-region. Non-transitive: if A is peered with B, and B is peered with C, traffic from A cannot reach C via B.',
+   rules:['1:1 per peering connection','Non-transitive — no hop-through routing','Both VPCs must add routes to each other\'s RT','No overlapping CIDRs allowed','Cross-account and cross-region supported']},
+
+  {id:'pl',       label:'PrivateLink',    icon:'🔗', group:'connectivity', color:C.blue,  r:20, tier:4,
+   type:'AWS PrivateLink',
+   desc:'Expose a service privately without VPC peering. Producer creates an NLB + Endpoint Service. Consumer creates an Interface Endpoint (ENI) in their subnet. No CIDR overlap issue. Unidirectional — consumer initiates.',
+   rules:['Producer needs: NLB + VPC Endpoint Service','Consumer creates: Interface Endpoint (1 ENI per AZ)','No VPC peering or CIDR overlap constraints','Unidirectional: consumer → producer only','Used for cross-account service sharing at scale']},
+
+  {id:'r53res',   label:'R53 Resolver',   icon:'🔍', group:'dns',         color:C.teal,   r:20, tier:4,
+   type:'Route 53 Resolver',
+   desc:'Handles DNS resolution inside VPCs via the implicit .2 resolver. Inbound endpoints let on-premises systems send DNS queries into AWS. Outbound endpoints forward specific domain queries from AWS to on-premises DNS servers.',
+   rules:['Default resolver: VPC base IP + 2 (e.g. 10.0.0.2)','Inbound endpoint: 1 ENI per AZ in chosen subnet','Outbound endpoint: min 2 IPs across 2 AZs','Forwarding rules define which domains go to on-prem','Share resolver rules across accounts via RAM']},
+
+  {id:'s3ep',     label:'S3/DDB\nGW EP',  icon:'🪣', group:'containment', color:C.navy,   r:18, tier:5,
+   type:'Gateway VPC Endpoint',
+   desc:'Free endpoint for S3 and DynamoDB only. Adds prefix list entries directly to your route table — traffic goes to the AWS network without traversing the internet or needing a NAT Gateway. No ENI is created.',
+   rules:['Free — no hourly charge','Only S3 and DynamoDB','Adds prefix list entries to route table','No ENI — no Security Group needed','1 per service per VPC']},
+
+  {id:'ifep',     label:'Interface\nEndpoint', icon:'🔌', group:'containment', color:C.navy, r:20, tier:5,
+   type:'Interface VPC Endpoint (PrivateLink)',
+   desc:'PrivateLink-based endpoint for AWS services (SSM, ECR, STS, Secrets Manager, etc.) or your own Endpoint Service. Creates an ENI with a private IP in your subnet. DNS resolves the service hostname to this private IP automatically.',
+   rules:['Creates 1 ENI per AZ subnet you choose','1 Security Group can be applied to the ENI','Hourly cost + data processing fee','DNS: service FQDN resolves to private IP in VPC','Can be accessed from on-premises via DX or VPN']},
+
+  {id:'onprem',   label:'On-Premises',    icon:'🏭', group:'connectivity', color:C.blue,   r:24, tier:0,
+   type:'On-Premises Data Centre',
+   desc:'Your data centre or office. Connects to AWS via Site-to-Site VPN (IPsec over internet) or Direct Connect (dedicated private circuit). BGP advertises routes in both directions.',
+   rules:['VPN: IPsec over internet, 2 tunnels per connection','DX: dedicated circuit, lower latency + consistent bandwidth','BGP advertises on-prem prefixes to AWS','AWS advertises VPC CIDRs back to on-prem','Best practice: both DX + VPN for resilience']},
+];
+
+const EDGES = [
+  {s:'internet', t:'cf',      type:'route',    label:'CDN request'},
+  {s:'internet', t:'r53',     type:'route',    label:'DNS lookup'},
+  {s:'internet', t:'igw',     type:'route',    label:'inbound traffic'},
+  {s:'internet', t:'ga',      type:'route',    label:'anycast entry'},
+  {s:'cf',       t:'alb',     type:'route',    label:'origin request'},
+  {s:'ga',       t:'alb',     type:'route',    label:'routed to endpoint'},
+  {s:'ga',       t:'nlb',     type:'route',    label:'routed to endpoint'},
+  {s:'waf',      t:'alb',     type:'attach',   label:'WebACL on ALB'},
+  {s:'waf',      t:'cf',      type:'attach',   label:'WebACL on CF'},
+  {s:'r53',      t:'cf',      type:'route',    label:'DNS → CloudFront'},
+  {s:'r53',      t:'alb',     type:'route',    label:'DNS → ALB'},
+  {s:'r53',      t:'ga',      type:'route',    label:'DNS → Anycast IP'},
+  {s:'apigw',    t:'nlb',     type:'attach',   label:'VPC Link → NLB'},
+  {s:'region',   t:'vpc',     type:'contains', label:'contains VPCs'},
+  {s:'region',   t:'az',      type:'contains', label:'contains AZs'},
+  {s:'vpc',      t:'igw',     type:'attach',   label:'1 IGW per VPC'},
+  {s:'vpc',      t:'vgw',     type:'attach',   label:'1 VGW per VPC'},
+  {s:'vpc',      t:'rt',      type:'contains', label:'has route tables'},
+  {s:'vpc',      t:'sg',      type:'contains', label:'SGs scoped to VPC'},
+  {s:'vpc',      t:'subnet',  type:'contains', label:'contains subnets'},
+  {s:'vpc',      t:'s3ep',    type:'attach',   label:'gateway endpoint'},
+  {s:'az',       t:'subnet',  type:'contains', label:'subnet scoped to AZ'},
+  {s:'subnet',   t:'rt',      type:'attach',   label:'1 RT per subnet'},
+  {s:'subnet',   t:'nacl',    type:'attach',   label:'1 NACL per subnet'},
+  {s:'subnet',   t:'natgw',   type:'contains', label:'NAT GW in public subnet'},
+  {s:'subnet',   t:'nfw',     type:'contains', label:'NFW endpoint in /28 subnet'},
+  {s:'subnet',   t:'eni',     type:'contains', label:'ENIs in subnet'},
+  {s:'subnet',   t:'ifep',    type:'contains', label:'Interface EP ENI'},
+  {s:'subnet',   t:'r53res',  type:'contains', label:'Resolver ENI in subnet'},
+  {s:'rt',       t:'igw',     type:'route',    label:'0.0.0.0/0 → IGW (public subnet)'},
+  {s:'rt',       t:'natgw',   type:'route',    label:'0.0.0.0/0 → NAT GW (private)'},
+  {s:'rt',       t:'tgw',     type:'route',    label:'specific prefix → TGW'},
+  {s:'rt',       t:'nfw',     type:'route',    label:'traffic directed to NFW endpoint'},
+  {s:'rt',       t:'vgw',     type:'route',    label:'on-prem prefix → VGW'},
+  {s:'rt',       t:'s3ep',    type:'route',    label:'S3/DDB prefix list'},
+  {s:'eni',      t:'ec2',     type:'attach',   label:'ENI attached to EC2'},
+  {s:'sg',       t:'eni',     type:'attach',   label:'up to 5 SGs per ENI'},
+  {s:'natgw',    t:'eip',     type:'attach',   label:'1 Elastic IP per NAT GW'},
+  {s:'igw',      t:'internet',type:'route',    label:'internet egress/ingress'},
+  {s:'subnet',   t:'alb',     type:'attach',   label:'1 ALB node per AZ subnet'},
+  {s:'subnet',   t:'nlb',     type:'attach',   label:'1 NLB node per AZ subnet'},
+  {s:'subnet',   t:'gwlb',    type:'attach',   label:'GWLB endpoint per subnet'},
+  {s:'alb',      t:'tg',      type:'attach',   label:'listener → target group'},
+  {s:'nlb',      t:'tg',      type:'attach',   label:'listener → target group'},
+  {s:'tg',       t:'ec2',     type:'attach',   label:'targets EC2/ECS tasks'},
+  {s:'tgwatt',   t:'vpc',     type:'attach',   label:'attaches VPC to TGW'},
+  {s:'tgwatt',   t:'tgw',     type:'attach',   label:'attachment on TGW'},
+  {s:'tgw',      t:'tgwrt',   type:'contains', label:'has TGW route tables'},
+  {s:'tgwrt',    t:'tgwatt',  type:'attach',   label:'association + propagation'},
+  {s:'tgw',      t:'vpn',     type:'attach',   label:'VPN attachment to TGW'},
+  {s:'tgw',      t:'dxgw',    type:'attach',   label:'DXGW → TGW association'},
+  {s:'vgw',      t:'vpn',     type:'attach',   label:'VPN terminates on VGW'},
+  {s:'vgw',      t:'dxgw',    type:'attach',   label:'Private VIF → VGW'},
+  {s:'dx',       t:'dxgw',    type:'attach',   label:'DX circuit → DX Gateway'},
+  {s:'onprem',   t:'dx',      type:'route',    label:'dedicated DX circuit'},
+  {s:'onprem',   t:'vpn',     type:'route',    label:'IPsec VPN over internet'},
+  {s:'nlb',      t:'pl',      type:'attach',   label:'NLB backs Endpoint Service'},
+  {s:'pl',       t:'ifep',    type:'attach',   label:'consumer Interface Endpoint'},
+  {s:'r53',      t:'vpc',     type:'attach',   label:'private hosted zone → VPC'},
+  {s:'r53res',   t:'r53',     type:'attach',   label:'Resolver → R53'},
+];
+
+const SCENARIOS = [
+  {id:'all',        icon:'🗺️', label:'Full Map',            color:C.navy,
+   nodes:null, desc:'All AWS networking services'},
+  {id:'web-app',    icon:'🌐', label:'Public Web App',       color:C.teal,
+   nodes:['internet','r53','cf','waf','alb','tg','ec2','subnet','vpc','igw','rt','sg','natgw','eip'],
+   desc:'Route53 → CloudFront → WAF → ALB → EC2'},
+  {id:'private',    icon:'🔒', label:'Private Subnet Access',color:C.slate,
+   nodes:['internet','igw','subnet','natgw','eip','ec2','eni','sg','nacl','rt','vpc'],
+   desc:'Private subnet → NAT GW → internet egress'},
+  {id:'hybrid',     icon:'🏭', label:'On-Prem Hybrid',       color:C.blue,
+   nodes:['onprem','dx','dxgw','tgw','tgwrt','tgwatt','vpc','subnet','rt','vgw','vpn'],
+   desc:'On-prem → DX or VPN → TGW → VPCs'},
+  {id:'inspection', icon:'🔥', label:'Centralised Firewall',  color:C.slate,
+   nodes:['tgw','tgwrt','tgwatt','nfw','subnet','rt','vpc','dx','dxgw','onprem'],
+   desc:'Hub-spoke inspection via NFW + TGW route tables'},
+  {id:'privatelink',icon:'🔗', label:'PrivateLink / Endpoints',color:C.blue,
+   nodes:['vpc','subnet','nlb','pl','ifep','tg','ec2','sg','s3ep'],
+   desc:'Private service exposure via PrivateLink'},
+  {id:'dns-arch',   icon:'🔍', label:'DNS Architecture',      color:C.teal,
+   nodes:['r53','r53res','vpc','subnet','onprem','dx','dxgw','internet'],
+   desc:'Route 53 + Resolver + hybrid DNS forwarding'},
+  {id:'lb-types',   icon:'⚖️', label:'Load Balancer Types',   color:C.indigo,
+   nodes:['internet','alb','nlb','gwlb','tg','ec2','waf','sg','subnet','vpc'],
+   desc:'ALB vs NLB vs GWLB — placement and use cases'},
+  {id:'security',   icon:'🛡️', label:'Security Layers',       color:C.slate,
+   nodes:['waf','cf','sg','nacl','nfw','tgw','igw','internet','alb','subnet','vpc'],
+   desc:'WAF → NACL → Security Group → NFW in depth'},
+  {id:'tgw-deep',   icon:'🔁', label:'TGW Deep Dive',          color:C.blue,
+   nodes:['tgw','tgwrt','tgwatt','vpc','subnet','rt','dx','dxgw','vpn','onprem','vgw'],
+   desc:'TGW attachments, route tables, and propagation'},
+];
+
+const GROUPS = [
+  {id:'containment', label:'Containment', color:C.navy},
+  {id:'connectivity',label:'Connectivity',color:C.blue},
+  {id:'security',    label:'Security',    color:C.slate},
+  {id:'lb',          label:'Load Balancers',color:C.indigo},
+  {id:'dns',         label:'DNS/Edge',    color:C.teal},
+  {id:'edge',        label:'Edge',        color:C.teal},
+  {id:'compute',     label:'Compute',     color:C.teal},
+];
+
+// ─── Runtime state ───
+const nodeById = {};
+const nodes = NODES.map(n=>({...n,x:0,y:0,vx:0,vy:0,visible:true,alpha:1}));
+nodes.forEach(n=>nodeById[n.id]=n);
+
+let transform={x:0,y:0,scale:1};
+let dragging=false,lastMouse=null,mouseDownPos=null;
+let hoveredNode=null,selectedNode=null;
+let activeScenario='all',activeGroup=null;
+let showLabels=true,showEdges=true,physicsOn=true;
+let ticks=0;
+
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+
+// ─── Sidebar ───
+function buildSidebar(){
+  const sc=document.getElementById('scenarios');
+  sc.innerHTML='';
+  SCENARIOS.forEach(s=>{
+    const btn=document.createElement('button');
+    btn.className='sc-pill'+(s.id===activeScenario?' active':'');
+    btn.style.color=s.color;
+    btn.innerHTML=`<span class="sc-icon">${s.icon}</span><span class="sc-label">${s.label}</span>`;
+    btn.title=s.desc;
+    btn.addEventListener('click',()=>applyScenario(s.id));
+    sc.appendChild(btn);
+  });
+
+  const fl=document.getElementById('filters');
+  fl.innerHTML='';
+  GROUPS.forEach(g=>{
+    const btn=document.createElement('button');
+    btn.className='f-chip'+(activeGroup===g.id?' active':'');
+    btn.style.borderColor=g.color;
+    btn.style.color=activeGroup===g.id?'#ffffff':g.color;
+    if(activeGroup===g.id) btn.style.background=g.color;
+    else btn.style.background='transparent';
+    btn.textContent=g.label;
+    btn.addEventListener('click',()=>toggleGroup(g.id));
+    fl.appendChild(btn);
+  });
+
+  const list=document.getElementById('svc-list');
+  list.innerHTML='';
+  [...nodes]
+    .filter(n=>n.visible)
+    .sort((a,b)=>a.label.replace('\n',' ').localeCompare(b.label.replace('\n',' ')))
+    .forEach(n=>{
+      const row=document.createElement('div');
+      row.className='svc-row'+(selectedNode===n?' active':'');
+      row.innerHTML=`<div class="svc-dot" style="background:${n.color};border-color:${n.color}"></div>
+        <span class="svc-name">${n.icon||''} ${n.label.replace('\n',' ')}</span>
+        <span class="svc-badge-sm">${n.group}</span>`;
+      row.addEventListener('click',()=>focusNode(n));
+      list.appendChild(row);
+    });
+}
+
+function applyScenario(id){
+  activeScenario=id;activeGroup=null;
+  const sc=SCENARIOS.find(s=>s.id===id);
+  if(!sc) return;
+  nodes.forEach(n=>n.visible=sc.nodes===null||sc.nodes.includes(n.id));
+  nodes.forEach(n=>n.alpha=1);
+  selectedNode=null;
+  ticks=0;
+  setFocusLabel(sc.nodes===null?null:sc.label);
+  hideInfo();
+  buildSidebar();
+}
+
+function toggleGroup(gid){
+  if(activeGroup===gid){activeGroup=null;nodes.forEach(n=>n.visible=true);}
+  else{activeGroup=gid;activeScenario=null;nodes.forEach(n=>n.visible=n.group===gid);}
+  nodes.forEach(n=>n.alpha=1);
+  selectedNode=null;ticks=0;
+  buildSidebar();
+}
+
+function focusNode(n){
+  selectedNode=n;
+  const connected=new Set([n.id]);
+  EDGES.forEach(e=>{if(e.s===n.id)connected.add(e.t);if(e.t===n.id)connected.add(e.s);});
+  nodes.forEach(nd=>nd.alpha=connected.has(nd.id)?1:0.12);
+  showInfo(n);buildSidebar();
+  // Pan to node
+  transform.x=canvas.width/2-n.x*transform.scale;
+  transform.y=canvas.height/2-n.y*transform.scale;
+}
+
+function clearFocus(){
+  selectedNode=null;nodes.forEach(n=>n.alpha=1);
+  hideInfo();buildSidebar();
+}
+
+function showInfo(n){
+  document.getElementById('info-icon').textContent=n.icon||'';
+  document.getElementById('info-name').textContent=n.label.replace('\n',' ');
+  document.getElementById('info-name').style.color=n.color;
+  document.getElementById('info-type').textContent=n.type||'';
+  document.getElementById('info-desc').textContent=n.desc||'';
+  const rules=document.getElementById('info-rules');
+  rules.innerHTML='';
+  (n.rules||[]).forEach(r=>{
+    const b=document.createElement('span');
+    b.className='info-badge';
+    b.style.background=n.color+'15';
+    b.style.color=n.color;
+    b.style.borderColor=n.color+'40';
+    b.textContent=r;
+    rules.appendChild(b);
+  });
+  document.getElementById('info').classList.add('show');
+}
+function hideInfo(){document.getElementById('info').classList.remove('show');}
+
+function setFocusLabel(text){
+  const el=document.getElementById('focus-label');
+  if(text){el.textContent='● '+text;el.classList.add('show');}
+  else el.classList.remove('show');
+}
+
+// Search
+document.getElementById('search').addEventListener('input',e=>{
+  const q=e.target.value.toLowerCase().trim();
+  if(!q){nodes.forEach(n=>n.alpha=1);return;}
+  nodes.forEach(n=>{
+    const hit=n.label.toLowerCase().includes(q)||n.type.toLowerCase().includes(q)
+      ||(n.desc||'').toLowerCase().includes(q)||n.id.toLowerCase().includes(q)
+      ||(n.rules||[]).some(r=>r.toLowerCase().includes(q));
+    n.alpha=hit?1:0.08;
+  });
+});
+
+// ─── Physics ───
+function initPositions(){
+  const w=canvas.width,h=canvas.height;
+  const tC={},tI={};
+  nodes.forEach(n=>{const t=n.tier??4;tC[t]=(tC[t]||0)+1;});
+  nodes.forEach(n=>{
+    const t=n.tier??4;tI[t]=tI[t]||0;
+    n.x=(tI[t]+1)*w/(tC[t]+1);
+    n.y=60+(t/8)*(h-120);
+    tI[t]++;n.vx=0;n.vy=0;
+  });
+  transform={x:0,y:0,scale:1};
+}
+
+function simulate(){
+  if(!physicsOn) return;
+  const vis=nodes.filter(n=>n.visible);
+  const w=canvas.width,h=canvas.height;
+  for(let i=0;i<vis.length;i++){
+    for(let j=i+1;j<vis.length;j++){
+      const a=vis[i],b=vis[j];
+      const dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+      const minD=(a.r+b.r)*3.4;
+      if(d<minD){
+        const f=(minD-d)/minD*0.5,fx=dx/d*f,fy=dy/d*f;
+        a.vx-=fx;a.vy-=fy;b.vx+=fx;b.vy+=fy;
+      }
+    }
+  }
+  EDGES.forEach(e=>{
+    const a=nodeById[e.s],b=nodeById[e.t];
+    if(!a||!b||!a.visible||!b.visible) return;
+    const dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+    const f=(d-160)/d*0.032;
+    a.vx+=dx*f;a.vy+=dy*f;b.vx-=dx*f;b.vy-=dy*f;
+  });
+  vis.forEach(n=>{
+    const ty=60+((n.tier??4)/8)*(h-120);
+    n.vy+=(ty-n.y)*0.016;
+    n.vx+=(w/2-n.x)*0.002;
+    n.vx*=0.8;n.vy*=0.8;
+    n.x=Math.max(n.r+8,Math.min(w-n.r-8,n.x+n.vx));
+    n.y=Math.max(n.r+8,Math.min(h-n.r-8,n.y+n.vy));
+  });
+}
+
+// ─── Render ───
+function draw(){
+  const w=canvas.width,h=canvas.height;
+  // Light warm background
+  ctx.fillStyle='#f4f2ee';
+  ctx.fillRect(0,0,w,h);
+
+  // Subtle dot grid
+  ctx.fillStyle='rgba(0,0,0,0.06)';
+  for(let x=0;x<w;x+=40) for(let y=0;y<h;y+=40){
+    ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fill();
+  }
+
+  ctx.save();
+  ctx.translate(transform.x,transform.y);
+  ctx.scale(transform.scale,transform.scale);
+
+  // Edges
+  if(showEdges){
+    EDGES.forEach(e=>{
+      const a=nodeById[e.s],b=nodeById[e.t];
+      if(!a||!b||!a.visible||!b.visible) return;
+      const ea=Math.min(a.alpha??1,b.alpha??1);
+      if(ea<0.05) return;
+      const isHov=(hoveredNode||selectedNode)&&
+        ((hoveredNode||selectedNode).id===a.id||(hoveredNode||selectedNode).id===b.id);
+      const baseOpacity=isHov?0.9:0.22;
+      const op=baseOpacity*ea;
+      const edgeCols={
+        contains:`rgba(26,26,46,${op})`,
+        attach:`rgba(37,99,235,${op})`,
+        route:`rgba(217,119,6,${op})`
+      };
+      ctx.save();
+      ctx.strokeStyle=edgeCols[e.type]||`rgba(0,0,0,${op})`;
+      ctx.lineWidth=isHov?2.5:1.2;
+      if(e.type==='attach') ctx.setLineDash([5,5]);
+      else ctx.setLineDash([]);
+
+      const dx=b.x-a.x,dy=b.y-a.y,len=Math.sqrt(dx*dx+dy*dy)||1;
+      const cx=(a.x+b.x)/2-dy/len*22,cy=(a.y+b.y)/2+dx/len*22;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(cx,cy,b.x,b.y);ctx.stroke();
+
+      if(isHov){
+        const t=0.82;
+        const ax2=Math.pow(1-t,2)*a.x+2*(1-t)*t*cx+t*t*b.x;
+        const ay2=Math.pow(1-t,2)*a.y+2*(1-t)*t*cy+t*t*b.y;
+        const tx2=2*(1-t)*(cx-a.x)+2*t*(b.x-cx);
+        const ty2=2*(1-t)*(cy-a.y)+2*t*(b.y-cy);
+        const tl=Math.sqrt(tx2*tx2+ty2*ty2)||1;
+        const ang=Math.atan2(ty2/tl,tx2/tl);
+        ctx.setLineDash([]);
+        ctx.fillStyle=ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.moveTo(ax2+Math.cos(ang)*7,ay2+Math.sin(ang)*7);
+        ctx.lineTo(ax2+Math.cos(ang+2.5)*4,ay2+Math.sin(ang+2.5)*4);
+        ctx.lineTo(ax2+Math.cos(ang-2.5)*4,ay2+Math.sin(ang-2.5)*4);
+        ctx.closePath();ctx.fill();
+      }
+
+      if(isHov&&e.label){
+        ctx.setLineDash([]);
+        const lx=(a.x+b.x)/2-dy/len*34,ly=(a.y+b.y)/2+dx/len*34;
+        ctx.font='500 9px "DM Mono"';
+        const tw=ctx.measureText(e.label).width;
+        ctx.fillStyle='rgba(255,255,255,0.95)';
+        ctx.shadowColor='rgba(0,0,0,0.12)';ctx.shadowBlur=6;
+        ctx.fillRect(lx-tw/2-5,ly-8,tw+10,16);
+        ctx.shadowBlur=0;
+        ctx.strokeStyle='rgba(0,0,0,0.12)';ctx.lineWidth=1;
+        ctx.strokeRect(lx-tw/2-5,ly-8,tw+10,16);
+        ctx.fillStyle='#1a1a1a';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(e.label,lx,ly);
+      }
+      ctx.restore();
+    });
+  }
+
+  // Nodes
+  nodes.forEach(n=>{
+    if(!n.visible) return;
+    const alpha=n.alpha??1;
+    const isHov=hoveredNode&&hoveredNode.id===n.id;
+    const isSel=selectedNode&&selectedNode.id===n.id;
+    const col=n.color||C.navy;
+
+    ctx.save();
+    ctx.globalAlpha=alpha;
+
+    // Selected ring
+    if(isSel){
+      ctx.beginPath();ctx.arc(n.x,n.y,n.r+7,0,Math.PI*2);
+      ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
+    }
+
+    // Shadow on hover/select
+    if(isHov||isSel){
+      ctx.shadowColor='rgba(0,0,0,0.2)';ctx.shadowBlur=16;ctx.shadowOffsetY=3;
+    }
+
+    // Circle — white fill with colored border
+    ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+    ctx.fillStyle=isHov||isSel?col+'18':'#ffffff';
+    ctx.fill();
+    ctx.strokeStyle=col;
+    ctx.lineWidth=isHov||isSel?3:2;
+    ctx.stroke();
+    ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+
+    // Icon
+    ctx.font=`${Math.max(10,n.r*0.55)}px serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle=col;
+    ctx.fillText(n.icon||'',n.x,n.y+(showLabels?-n.r*0.15:0));
+
+    // Label
+    if(showLabels){
+      const lines=n.label.split('\n');
+      ctx.font=`${isHov||isSel?'500':'400'} ${Math.max(7,Math.min(10,n.r*0.42))}px "DM Mono"`;
+      ctx.fillStyle=isHov||isSel?col:'#3a3a5a';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      const lh=Math.max(8,n.r*0.38);
+      lines.forEach((line,i)=>ctx.fillText(line,n.x,n.y+n.r*0.32+(i-(lines.length-1)/2)*lh));
+    }
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+// ─── Interaction ───
+function toWorld(cx,cy){return{x:(cx-transform.x)/transform.scale,y:(cy-transform.y)/transform.scale};}
+function hit(cx,cy){
+  const{x,y}=toWorld(cx,cy);
+  for(let i=nodes.length-1;i>=0;i--){
+    const n=nodes[i];if(!n.visible)continue;
+    if(Math.hypot(n.x-x,n.y-y)<n.r+5)return n;
+  }return null;
+}
+
+canvas.addEventListener('mousedown',e=>{
+  dragging=true;const rect=canvas.getBoundingClientRect();
+  lastMouse={x:e.clientX-rect.left,y:e.clientY-rect.top};
+  mouseDownPos={x:e.clientX,y:e.clientY};
+});
+window.addEventListener('mouseup',e=>{
+  if(dragging&&mouseDownPos){
+    const dx=e.clientX-mouseDownPos.x,dy=e.clientY-mouseDownPos.y;
+    if(Math.hypot(dx,dy)<5){
+      const rect=canvas.getBoundingClientRect();
+      const n=hit(e.clientX-rect.left,e.clientY-rect.top);
+      if(n)focusNode(n);else clearFocus();
+    }
+  }
+  dragging=false;
+});
+canvas.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const cx=e.clientX-rect.left,cy=e.clientY-rect.top;
+  if(dragging&&lastMouse){transform.x+=cx-lastMouse.x;transform.y+=cy-lastMouse.y;lastMouse={x:cx,y:cy};return;}
+  const n=hit(cx,cy);hoveredNode=n;canvas.style.cursor=n?'pointer':'grab';
+});
+canvas.addEventListener('mouseleave',()=>hoveredNode=null);
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  const cx=e.clientX-rect.left,cy=e.clientY-rect.top;
+  const f=e.deltaY<0?1.12:0.9;
+  const ns=Math.max(0.15,Math.min(5,transform.scale*f));
+  transform.x=cx-(cx-transform.x)*(ns/transform.scale);
+  transform.y=cy-(cy-transform.y)*(ns/transform.scale);
+  transform.scale=ns;
+},{passive:false});
+
+let lastTD=null;
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;lastMouse={x:e.touches[0].clientX,y:e.touches[0].clientY};}},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&dragging){const cx=e.touches[0].clientX,cy=e.touches[0].clientY;transform.x+=cx-lastMouse.x;transform.y+=cy-lastMouse.y;lastMouse={x:cx,y:cy};}
+  if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastTD)transform.scale=Math.max(0.15,Math.min(5,transform.scale*(d/lastTD)));lastTD=d;}
+},{passive:true});
+canvas.addEventListener('touchend',()=>{dragging=false;lastTD=null;});
+
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  initPositions();ticks=0;clearFocus();
+  activeScenario='all';activeGroup=null;
+  nodes.forEach(n=>{n.visible=true;n.alpha=1;});
+  buildSidebar();setFocusLabel(null);
+});
+document.getElementById('btn-labels').addEventListener('click',function(){showLabels=!showLabels;this.classList.toggle('on',showLabels);});
+document.getElementById('btn-edges').addEventListener('click',function(){showEdges=!showEdges;this.classList.toggle('on',showEdges);});
+document.getElementById('btn-physics').addEventListener('click',function(){physicsOn=!physicsOn;this.classList.toggle('on',physicsOn);});
+document.getElementById('info-close').addEventListener('click',clearFocus);
+document.getElementById('toggle-panel').addEventListener('click',()=>{
+  const p=document.getElementById('panel');
+  p.classList.toggle('collapsed');
+  setTimeout(()=>{canvas.width=document.getElementById('canvas-area').clientWidth;},310);
+});
+
+function resize(){
+  const wrap=document.getElementById('canvas-area');
+  canvas.width=wrap.clientWidth;canvas.height=wrap.clientHeight;
+  initPositions();buildSidebar();
+}
+window.addEventListener('resize',()=>{resize();ticks=0;});
+
+function loop(){simulate();draw();requestAnimationFrame(loop);}
+resize();buildSidebar();loop();
+</script>
+</body>
+</html>
