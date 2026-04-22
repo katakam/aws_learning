@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Network — Learning Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════
+   THEME TOKENS
+   Atkinson Hyperlegible — designed for low vision
+   Font sizes: minimum 13px for body, 15px for labels
+══════════════════════════════════════════ */
+:root {
+  --fs-xs:   13px;
+  --fs-sm:   14px;
+  --fs-md:   15px;
+  --fs-lg:   17px;
+  --fs-xl:   20px;
+  --fs-2xl:  24px;
+  --lh:      1.6;
+  --radius:  9px;
+  --transition: 0.22s ease;
+}
+
+[data-theme="light"] {
+  --bg-app:        #f5f3ef;
+  --bg-panel:      #ffffff;
+  --bg-panel-head: #1c2333;
+  --bg-input:      #f9f8f6;
+  --bg-hover:      #f0ede7;
+  --bg-active:     #e8f0ff;
+  --bg-node:       #ffffff;
+  --bg-info:       #ffffff;
+  --bg-legend:     rgba(255,255,255,0.96);
+  --bg-tooltip:    #ffffff;
+
+  --border:        #dedad4;
+  --border-strong: #c8c4be;
+  --border-input:  #c8c4be;
+
+  --text-primary:  #111827;
+  --text-secondary:#374151;
+  --text-muted:    #6b7280;
+  --text-faint:    #9ca3af;
+  --text-panel-head:#ffffff;
+
+  --dot-grid:      rgba(0,0,0,0.055);
+  --shadow-node:   rgba(0,0,0,0.14);
+  --shadow-info:   rgba(0,0,0,0.1);
+
+  --edge-contains: rgba(28,35,51,VAR);
+  --edge-attach:   rgba(37,99,235,VAR);
+  --edge-route:    rgba(180,90,0,VAR);
+
+  --badge-bg:      #f0ede7;
+  --badge-text:    #4b5563;
+}
+
+[data-theme="dark"] {
+  --bg-app:        #111520;
+  --bg-panel:      #181d2a;
+  --bg-panel-head: #0d1018;
+  --bg-input:      #1e2436;
+  --bg-hover:      #1e2840;
+  --bg-active:     #1a2545;
+  --bg-node:       #1c2233;
+  --bg-info:       #181d2a;
+  --bg-legend:     rgba(24,29,42,0.97);
+  --bg-tooltip:    #1e2436;
+
+  --border:        #2a3148;
+  --border-strong: #3a4460;
+  --border-input:  #2e3a55;
+
+  --text-primary:  #eef2ff;
+  --text-secondary:#c7d0e8;
+  --text-muted:    #8899bb;
+  --text-faint:    #506080;
+  --text-panel-head:#d0d8f0;
+
+  --dot-grid:      rgba(255,255,255,0.025);
+  --shadow-node:   rgba(0,0,0,0.5);
+  --shadow-info:   rgba(0,0,0,0.4);
+
+  --edge-contains: rgba(160,180,230,VAR);
+  --edge-attach:   rgba(96,160,255,VAR);
+  --edge-route:    rgba(255,165,60,VAR);
+
+  --badge-bg:      #232d42;
+  --badge-text:    #8899bb;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%;
+  overflow:hidden;
+  background: var(--bg-app);
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+  color: var(--text-primary);
+  font-size: var(--fs-md);
+  line-height: var(--lh);
+  transition: background var(--transition), color var(--transition);
+}
+
+/* ── LAYOUT ── */
+#shell { display:flex; height:100vh; width:100vw; }
+
+/* ── PANEL ── */
+#panel {
+  width:290px; min-width:290px; height:100vh;
+  background: var(--bg-panel);
+  border-right: 2px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden;
+  transition: width 0.28s ease, min-width 0.28s ease, border-color var(--transition), background var(--transition);
+  z-index:20;
+}
+#panel.collapsed { width:0; min-width:0; border-right:none; }
+
+#panel-head {
+  padding:18px 16px 12px;
+  border-bottom: 2px solid var(--border);
+  flex-shrink:0;
+  background: var(--bg-panel-head);
+  display:flex; align-items:flex-start; justify-content:space-between;
+}
+#panel-head-text h1 {
+  font-family:'Syne',sans-serif;
+  font-size: var(--fs-xl);
+  font-weight:800;
+  color: var(--text-panel-head);
+  letter-spacing:-0.3px;
+  line-height:1.2;
+}
+#panel-head-text p {
+  font-size: var(--fs-xs);
+  color: #7a8aaa;
+  margin-top:4px;
+}
+
+/* Dark mode toggle */
+#theme-toggle {
+  background:transparent; border:2px solid rgba(255,255,255,0.2);
+  border-radius:20px; padding:5px 11px;
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-xs); font-weight:700;
+  color:rgba(255,255,255,0.7); cursor:pointer;
+  transition:all 0.2s; white-space:nowrap; flex-shrink:0;
+  display:flex; align-items:center; gap:5px;
+}
+#theme-toggle:hover { border-color:rgba(255,255,255,0.5); color:#ffffff; }
+
+/* Search */
+#search-wrap {
+  padding:12px 14px;
+  flex-shrink:0;
+  border-bottom:1px solid var(--border);
+  background:var(--bg-panel);
+}
+#search {
+  width:100%;
+  background:var(--bg-input);
+  border:2px solid var(--border-input);
+  border-radius: var(--radius);
+  padding:9px 12px;
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  outline:none;
+  transition: border-color 0.18s, background var(--transition), color var(--transition);
+}
+#search:focus { border-color: #3b82f6; }
+#search::placeholder { color: var(--text-faint); }
+
+/* Section headers */
+.sec-head {
+  font-size: var(--fs-xs);
+  letter-spacing:1.2px;
+  text-transform:uppercase;
+  color: var(--text-faint);
+  padding:11px 16px 5px;
+  flex-shrink:0;
+  font-weight:700;
+}
+
+/* Scenario pills */
+#scenarios { padding:0 10px 4px; flex-shrink:0; }
+.sc-pill {
+  display:flex; align-items:center; gap:9px; width:100%;
+  padding:9px 11px; border-radius: var(--radius);
+  border:2px solid transparent;
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-sm);
+  cursor:pointer; margin-bottom:3px;
+  transition:all 0.15s; background:transparent;
+  text-align:left; color: var(--text-secondary);
+  line-height:1.3;
+}
+.sc-pill:hover {
+  background:var(--bg-hover);
+  border-color:var(--border);
+  color:var(--text-primary);
+}
+.sc-pill.active {
+  border-color:currentColor;
+  background:var(--bg-active);
+  font-weight:700;
+  color:inherit;
+}
+.sc-icon { font-size:1rem; flex-shrink:0; line-height:1; }
+.sc-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Group filter chips */
+#filters { padding:0 12px 6px; display:flex; flex-wrap:wrap; gap:6px; flex-shrink:0; }
+.f-chip {
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-xs);
+  font-weight:700;
+  padding:5px 11px; border-radius:20px; border:2px solid;
+  cursor:pointer; transition:all 0.15s; background:transparent;
+  line-height:1;
+}
+.f-chip.active { color:#ffffff !important; border-color:transparent !important; }
+
+/* Service list */
+#svc-list { flex:1; overflow-y:auto; padding:0 10px 12px; }
+#svc-list::-webkit-scrollbar { width:5px; }
+#svc-list::-webkit-scrollbar-track { background:transparent; }
+#svc-list::-webkit-scrollbar-thumb { background:var(--border-strong); border-radius:3px; }
+.svc-row {
+  display:flex; align-items:center; gap:9px;
+  padding:8px 9px; border-radius:7px;
+  cursor:pointer; transition:background 0.12s;
+  font-size: var(--fs-sm); color:var(--text-secondary);
+}
+.svc-row:hover { background:var(--bg-hover); color:var(--text-primary); }
+.svc-row.active { background:var(--bg-active); color:var(--text-primary); font-weight:700; }
+.svc-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; border:2px solid; }
+.svc-name { flex:1; }
+.svc-badge-sm {
+  font-size:11px; padding:2px 6px; border-radius:5px;
+  background:var(--badge-bg); color:var(--badge-text);
+  font-weight:700; white-space:nowrap;
+}
+
+/* ── CANVAS AREA ── */
+#canvas-area { flex:1; position:relative; overflow:hidden; background:var(--bg-app); transition:background var(--transition); }
+canvas { position:absolute; inset:0; cursor:grab; }
+canvas:active { cursor:grabbing; }
+
+/* Toggle panel button */
+#toggle-panel {
+  position:absolute; top:14px; left:14px; z-index:30;
+  background:var(--bg-panel); border:2px solid var(--border-strong);
+  border-radius:var(--radius); padding:8px 13px;
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-sm); font-weight:700;
+  color:var(--text-primary); cursor:pointer;
+  transition:all 0.18s; box-shadow:0 2px 8px var(--shadow-node);
+}
+#toggle-panel:hover { border-color:#3b82f6; }
+
+/* Toolbar */
+#toolbar {
+  position:absolute; top:14px; right:14px; z-index:30;
+  display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end;
+}
+.tb-btn {
+  background:var(--bg-panel); border:2px solid var(--border);
+  border-radius:var(--radius); padding:7px 13px;
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-sm); font-weight:400;
+  color:var(--text-muted); cursor:pointer;
+  transition:all 0.15s; white-space:nowrap;
+  box-shadow:0 1px 4px var(--shadow-node);
+}
+.tb-btn:hover { color:var(--text-primary); border-color:var(--border-strong); }
+.tb-btn.on { color:#2563eb; border-color:#2563eb; background:var(--bg-active); font-weight:700; }
+
+/* Info panel */
+#info {
+  position:absolute; bottom:0; left:0; right:0; z-index:25;
+  background:var(--bg-info);
+  border-top:2px solid var(--border);
+  padding:18px 22px 16px;
+  transform:translateY(100%); transition:transform 0.25s ease;
+  pointer-events:none;
+  box-shadow:0 -4px 24px var(--shadow-info);
+}
+#info.show { transform:translateY(0); pointer-events:all; }
+#info-inner { display:flex; gap:18px; align-items:flex-start; max-width:880px; }
+#info-close {
+  position:absolute; top:14px; right:16px;
+  background:var(--badge-bg); border:2px solid var(--border);
+  border-radius:7px; padding:5px 11px;
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-sm); color:var(--text-muted);
+  cursor:pointer; transition:all 0.15s;
+}
+#info-close:hover { color:var(--text-primary); border-color:var(--border-strong); }
+#info-icon { font-size:2.2rem; flex-shrink:0; line-height:1; }
+#info-body { flex:1; }
+#info-name {
+  font-family:'Syne',sans-serif;
+  font-size: var(--fs-xl);
+  font-weight:800; margin-bottom:3px; color:var(--text-primary);
+  line-height:1.2;
+}
+#info-type {
+  font-size: var(--fs-xs); text-transform:uppercase;
+  letter-spacing:1px; color:var(--text-muted); margin-bottom:10px;
+  font-weight:700;
+}
+#info-desc {
+  font-size: var(--fs-md); color:var(--text-secondary);
+  line-height:1.7; margin-bottom:12px; max-width:580px;
+}
+#info-rules { display:flex; flex-wrap:wrap; gap:6px; }
+.info-badge {
+  font-size: var(--fs-sm); padding:5px 11px; border-radius:7px;
+  font-weight:700; border:2px solid; line-height:1.3;
+}
+
+/* Legend */
+#legend {
+  position:absolute; bottom:16px; right:16px; z-index:30;
+  background:var(--bg-legend); border:2px solid var(--border);
+  border-radius:var(--radius); padding:12px 15px;
+  font-size: var(--fs-sm); color:var(--text-muted);
+  pointer-events:none;
+  box-shadow:0 2px 12px var(--shadow-info);
+  transition: background var(--transition), border-color var(--transition);
+}
+#legend > div { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+#legend > div:last-child { margin-bottom:0; }
+.leg-line { width:26px; height:0; }
+
+/* Focus label */
+#focus-label {
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  background:var(--bg-panel-head); border:2px solid #3b82f6;
+  border-radius:20px; padding:6px 18px;
+  font-family:'Atkinson Hyperlegible',sans-serif;
+  font-size: var(--fs-sm); font-weight:700; color:#93c5fd;
+  pointer-events:none; opacity:0; transition:opacity 0.25s; z-index:25;
+  white-space:nowrap;
+}
+#focus-label.show { opacity:1; }
+</style>
+</head>
+<body>
+<div id="shell">
+
+<!-- ═══ LEFT PANEL ═══ -->
+<div id="panel">
+  <div id="panel-head">
+    <div id="panel-head-text">
+      <h1>AWS Net Graph</h1>
+      <p>Click · Filter · Learn</p>
+    </div>
+    <button id="theme-toggle" title="Toggle dark/light mode">☀️ Light</button>
+  </div>
+
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Search… subnet, TGW, NAT GW…" autocomplete="off">
+  </div>
+
+  <div class="sec-head">📚 Learning Scenarios</div>
+  <div id="scenarios"></div>
+
+  <div class="sec-head">🔬 Filter by Group</div>
+  <div id="filters"></div>
+
+  <div class="sec-head">📋 All Services</div>
+  <div id="svc-list"></div>
+</div>
+
+<!-- ═══ CANVAS ═══ -->
+<div id="canvas-area">
+  <button id="toggle-panel">☰ Menu</button>
+
+  <div id="toolbar">
+    <button class="tb-btn" id="btn-reset">↺ Reset</button>
+    <button class="tb-btn on" id="btn-labels">Labels ON</button>
+    <button class="tb-btn on" id="btn-edges">Edges ON</button>
+    <button class="tb-btn on" id="btn-physics">Physics ON</button>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <div id="focus-label"></div>
+
+  <div id="legend">
+    <div><div class="leg-line" style="border-top:3px solid #1c2333"></div> Contains / inside</div>
+    <div><div class="leg-line" style="border-top:3px dashed #2563eb"></div> Associates / attaches</div>
+    <div><div class="leg-line" style="border-top:3px solid #b45309"></div> Routes traffic</div>
+  </div>
+
+  <div id="info">
+    <button id="info-close">✕ Close</button>
+    <div id="info-inner">
+      <div id="info-icon"></div>
+      <div id="info-body">
+        <div id="info-name"></div>
+        <div id="info-type"></div>
+        <div id="info-desc"></div>
+        <div id="info-rules"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- #shell -->
+
+<script>
+// ══════════════════════════════════════════════════════════
+// COLORS — 5 distinct hues, both themes
+// ══════════════════════════════════════════════════════════
+function getColors(theme) {
+  if (theme === 'dark') return {
+    navy:   '#6b9eff',   // containment — bright blue on dark
+    blue:   '#38bdf8',   // connectivity — sky blue
+    amber:  '#fbbf24',   // routing — amber
+    slate:  '#94a3b8',   // security — steel
+    indigo: '#a78bfa',   // load balancers — violet
+    teal:   '#2dd4bf',   // dns/edge/compute — teal
+  };
+  return {
+    navy:   '#1e3a5f',   // containment — deep navy
+    blue:   '#1d4ed8',   // connectivity — royal blue
+    amber:  '#92400e',   // routing — dark amber
+    slate:  '#334155',   // security — dark slate
+    indigo: '#4c1d95',   // load balancers — deep indigo
+    teal:   '#0f766e',   // dns/edge — dark teal
+  };
+}
+
+let theme = 'light';
+let C = getColors(theme);
+
+// ══════════════════════════════════════════════════════════
+// NODE DATA
+// ══════════════════════════════════════════════════════════
+const NODES_DEF = [
+  {id:'internet', label:'Internet',         icon:'🌍', group:'edge',        colorKey:'teal',   r:28, tier:0,
+   type:'External Network',
+   desc:'The public internet. End-user or on-premises traffic that has not yet entered the AWS network.',
+   rules:['Enters AWS via IGW, CloudFront, or Global Accelerator','Exits AWS via NAT Gateway (private) or IGW (public)']},
+
+  {id:'cf',       label:'CloudFront',       icon:'⚡', group:'edge',        colorKey:'teal',   r:26, tier:0,
+   type:'CDN / Edge',
+   desc:'Global content delivery network at 400+ Points of Presence. Caches content near users, terminates TLS, integrates WAF. Origins can be S3, ALB, API Gateway, or custom HTTP.',
+   rules:['Global — not tied to one region','1 distribution → many origins','Attach WAF WebACL globally (CloudFront only)','Reduces latency for global users']},
+
+  {id:'r53',      label:'Route 53',         icon:'🌐', group:'dns',         colorKey:'teal',   r:24, tier:0,
+   type:'DNS Service',
+   desc:'AWS managed DNS. Hosts public and private hosted zones. Routing policies: latency, geolocation, failover, weighted. Health checks trigger automatic DNS failover.',
+   rules:['Global service — no regional boundary','Private hosted zone associates with 1 or more VPCs','Alias records point to AWS resources (ALB, CF, S3)','Health checks can trigger DNS-level failover']},
+
+  {id:'ga',       label:'Global\nAccelerator', icon:'🚀', group:'edge',     colorKey:'teal',   r:22, tier:0,
+   type:'Edge Accelerator',
+   desc:'Two static anycast IPs route users to the nearest AWS edge PoP, then traffic travels the AWS private backbone to your endpoint. Not a CDN — no caching. Best for TCP/UDP apps needing global static IPs.',
+   rules:['2 static Anycast IPs — never change','Endpoints: ALB, NLB, EC2, Elastic IP','Automatic health-check based failover','~60% latency improvement vs internet routing']},
+
+  {id:'waf',      label:'WAF',              icon:'🛡️', group:'security',   colorKey:'slate',  r:20, tier:0,
+   type:'Layer 7 Firewall',
+   desc:'Web Application Firewall. Inspects HTTP/HTTPS requests. Rules block SQL injection, XSS, bad bots, rate limits, and IP-based threats. Attached to ALB, CloudFront, API Gateway, or AppSync.',
+   rules:['Attached to ALB / CloudFront / API Gateway','1 WebACL per protected resource','AWS managed rule groups available','Regional WebACL or Global (CloudFront only)']},
+
+  {id:'apigw',    label:'API Gateway',      icon:'🔌', group:'edge',        colorKey:'teal',   r:22, tier:0,
+   type:'API Management',
+   desc:'Managed API front-door for REST, HTTP, and WebSocket APIs. Handles auth (Cognito, Lambda authoriser), throttling, and usage plans. VPC Link connects it to private NLB backends.',
+   rules:['Regional or edge-optimised (CloudFront backed)','VPC Link → NLB → private VPC resources','Attach WAF WebACL','1 API → many stages (dev, staging, prod)']},
+
+  {id:'region',   label:'Region',           icon:'🗺️', group:'containment', colorKey:'navy',   r:34, tier:1,
+   type:'AWS Geography',
+   desc:'A geographic cluster of AWS data centres. You choose which region to deploy in. Most services are regional — data does not leave a region unless you explicitly configure replication.',
+   rules:['33 regions worldwide (2024)','All VPCs live inside a region','AZs per region: typically 3–6','Global services: Route 53, IAM, CloudFront, Global Accelerator']},
+
+  {id:'vpc',      label:'VPC',              icon:'🏛️', group:'containment', colorKey:'navy',   r:30, tier:2,
+   type:'Virtual Private Cloud',
+   desc:'Your isolated private network inside AWS. You define the IP address range (CIDR block). It spans all AZs in the region. Resources launched inside get private IPs from this CIDR.',
+   rules:['Up to 5 VPCs per region (soft limit)','Define CIDR block e.g. 10.0.0.0/16','1 Internet Gateway max per VPC','1 Virtual Private Gateway max per VPC','Subnets subdivide the CIDR per AZ']},
+
+  {id:'az',       label:'AZ',               icon:'🏢', group:'containment', colorKey:'navy',   r:20, tier:2,
+   type:'Availability Zone',
+   desc:'A physically separate data centre within a region with independent power, cooling, and networking. Deploying across multiple AZs protects against single-AZ failures.',
+   rules:['2–6 AZs per region','Each subnet is scoped to exactly 1 AZ','Deploy in 2+ AZs for high availability','~1–2ms latency between AZs in the same region']},
+
+  {id:'subnet',   label:'Subnet',           icon:'📦', group:'containment', colorKey:'navy',   r:26, tier:3,
+   type:'Network Segment',
+   desc:'A subdivision of your VPC CIDR, scoped to exactly 1 AZ. Public subnets have a route to IGW. Private subnets do not. The subnet type is determined entirely by its Route Table — not a flag on the subnet itself.',
+   rules:['Tied to exactly 1 AZ','Associates with exactly 1 Route Table','AWS reserves 5 IPs per subnet (first 4 + broadcast)','Min /28 (11 usable) for TGW attachment subnets','Public = Route Table has 0.0.0.0/0 → IGW']},
+
+  {id:'rt',       label:'Route Table',      icon:'🗂️', group:'containment', colorKey:'navy',   r:22, tier:3,
+   type:'Routing Control',
+   desc:'Controls where traffic from a subnet is forwarded. Each entry: destination CIDR → target (IGW, NAT GW, TGW, VGW, endpoint, or peering). Longest prefix match wins.',
+   rules:['Each subnet associates with exactly 1 RT','1 RT can cover many subnets','VPC has 1 main RT (default for unassociated subnets)','Local route (VPC CIDR) always present — cannot delete','Longest prefix match — more specific route wins']},
+
+  {id:'igw',      label:'IGW',              icon:'🌉', group:'containment', colorKey:'navy',   r:22, tier:3,
+   type:'Internet Gateway',
+   desc:'Attached to the VPC (not a subnet). Enables public subnets to communicate with the internet. Horizontally scaled and redundant — no bandwidth limit. Performs 1:1 NAT between public and private IPs.',
+   rules:['Exactly 1 per VPC','Attached to the VPC, not to a subnet','Does 1:1 NAT: public IP ↔ private IP','No bandwidth throttle — scales automatically','Subnet RT must also have 0.0.0.0/0 → IGW to be "public"']},
+
+  {id:'natgw',    label:'NAT\nGateway',     icon:'🔄', group:'containment', colorKey:'navy',   r:22, tier:4,
+   type:'NAT Gateway',
+   desc:'Allows private subnet instances to initiate outbound internet connections. Blocks all inbound from internet. Must be deployed in a public subnet with an Elastic IP. Deploy 1 per AZ for resilience.',
+   rules:['Deploy 1 per AZ for high availability','Must live in a public subnet','Requires 1 Elastic IP per NAT GW','Private subnet RT: 0.0.0.0/0 → NAT GW','Managed by AWS — fully HA within its AZ']},
+
+  {id:'sg',       label:'Security\nGroup',  icon:'🔐', group:'security',    colorKey:'slate',  r:22, tier:4,
+   type:'Stateful Firewall — Instance Level',
+   desc:'Applied to ENIs. Allow rules only — no deny rules. Return traffic is automatically allowed. Can reference other SGs as sources (e.g. allow traffic from the ALB SG directly).',
+   rules:['Up to 5 SGs per ENI','1 SG can protect many ENIs across the VPC','Stateful — return traffic is auto-allowed','No explicit deny — only allow rules','Can reference other SGs as a source']},
+
+  {id:'nacl',     label:'NACL',             icon:'📋', group:'security',    colorKey:'slate',  r:20, tier:4,
+   type:'Stateless Firewall — Subnet Level',
+   desc:'Applied at the subnet boundary. Rules evaluated in ascending number order. Stateless means you must explicitly allow BOTH inbound AND outbound, including ephemeral/return ports (1024-65535).',
+   rules:['1 NACL per subnet','1 NACL can cover many subnets','Stateless — allow both directions explicitly','Rules evaluated lowest number first','Common: rule 100 allow, rule * deny']},
+
+  {id:'eni',      label:'ENI',              icon:'🔌', group:'containment', colorKey:'navy',   r:18, tier:5,
+   type:'Elastic Network Interface',
+   desc:'The virtual network card for any resource in a VPC. Holds the private IP, MAC address, and Security Group associations. Every EC2, Lambda (VPC), RDS, NAT GW, and LB node uses an ENI.',
+   rules:['Lives in exactly 1 subnet','Up to 5 Security Groups per ENI','Primary ENI cannot be detached from EC2','Can have multiple secondary private IPs','Can be moved between EC2 instances']},
+
+  {id:'ec2',      label:'EC2',              icon:'💻', group:'compute',     colorKey:'teal',   r:20, tier:5,
+   type:'Virtual Machine',
+   desc:'A virtual server in your subnet. Gets an ENI with a private IP from the subnet CIDR. Can also have a public IP or Elastic IP. Security Groups control inbound/outbound at the ENI level.',
+   rules:['1 or more ENIs per instance','Must be placed in a subnet','Security Groups applied at ENI level','Elastic IP for static public address','Instance type determines network bandwidth cap']},
+
+  {id:'nfw',      label:'Network\nFirewall', icon:'🔥', group:'security',   colorKey:'slate',  r:24, tier:5,
+   type:'Managed Deep Packet Inspection',
+   desc:'AWS managed stateful + stateless firewall with Suricata-compatible IDS/IPS rules. Deployed as endpoints in dedicated /28 subnets. Route tables MUST explicitly direct traffic through the NFW endpoint — it is not inline automatically.',
+   rules:['1 NFW endpoint per AZ (dedicated /28 subnet)','Route table explicitly routes traffic to NFW endpoint','Stateful AND stateless rule groups','Suricata-compatible IDS/IPS rules','Used in centralised hub-spoke inspection architectures']},
+
+  {id:'eip',      label:'Elastic IP',       icon:'📌', group:'containment', colorKey:'navy',   r:16, tier:5,
+   type:'Static Public IPv4',
+   desc:'A static public IPv4 address allocated to your account. Persists across instance stop/start. Associate with an ENI or NAT Gateway. Billed when allocated but NOT associated with a running resource.',
+   rules:['5 EIPs per region (soft limit)','1 EIP per NAT GW','Persists across instance restart','Billed when not associated — release unused EIPs','Can be moved between instances for manual failover']},
+
+  {id:'alb',      label:'ALB',              icon:'⚖️', group:'lb',          colorKey:'indigo', r:26, tier:4,
+   type:'Application Load Balancer — Layer 7',
+   desc:'Routes HTTP/HTTPS by host header, URL path, query strings, or HTTP headers. Supports WebSocket, HTTP/2, gRPC. Integrates with WAF and Cognito. Places 1 node per AZ subnet you select — minimum 2 AZs required.',
+   rules:['Layer 7 — HTTP/HTTPS content-based routing','1 node per AZ subnet (min 2 AZs required)','Listener → routing rules → target group','Cross-zone load balancing ON by default','Integrates WAF WebACL + Cognito authentication']},
+
+  {id:'nlb',      label:'NLB',              icon:'⚡', group:'lb',          colorKey:'indigo', r:26, tier:4,
+   type:'Network Load Balancer — Layer 4',
+   desc:'Routes TCP/UDP/TLS traffic. Handles millions of requests per second. 1 static or Elastic IP per AZ node. Preserves client source IP address. Required backend for PrivateLink Endpoint Services.',
+   rules:['Layer 4 — TCP/UDP/TLS only','Static IP per AZ node (optionally assign EIP)','Cross-zone load balancing OFF by default','Required to back a PrivateLink Endpoint Service','Preserves source IP address to targets']},
+
+  {id:'gwlb',     label:'GWLB',             icon:'🔀', group:'lb',          colorKey:'indigo', r:22, tier:4,
+   type:'Gateway Load Balancer — Layer 3',
+   desc:'Transparent bump-in-the-wire for 3rd-party appliances (firewalls, IDS/IPS). Uses GENEVE protocol (port 6081). A GWLB Endpoint sits in spoke subnets; route tables direct traffic through it to the appliance fleet.',
+   rules:['Layer 3 — transparent IP packet inspection','GENEVE encapsulation on port 6081','1 GWLB Endpoint per subnet in spoke VPCs','Appliance fleet lives in dedicated inspection VPC','Route table must direct traffic to GWLB Endpoint']},
+
+  {id:'tg',       label:'Target\nGroup',    icon:'🎯', group:'lb',          colorKey:'indigo', r:18, tier:5,
+   type:'Load Balancer Target Group',
+   desc:'The set of registered targets (backends) for a load balancer. Types: EC2 instance, ECS task, Lambda function, or IP address. Health checks run per target. A listener rule points traffic to a target group.',
+   rules:['1 target group per listener rule','Targets: EC2, ECS task, Lambda, or IP address','Health checks run per individual target','Target group can span multiple AZs','Deregistration delay: 300 seconds default']},
+
+  {id:'tgw',      label:'Transit\nGateway', icon:'🔁', group:'connectivity',colorKey:'blue',   r:30, tier:3,
+   type:'Regional Routing Hub',
+   desc:'A regional hub router. VPCs, VPN connections, and Direct Connect (via DX Gateway) all attach to it. Each attachment has 1 association (which TGW route table it reads) and can propagate routes into multiple TGW route tables. Shared cross-account via RAM.',
+   rules:['Up to 5000 attachments per TGW','1 TGW attachment per VPC per TGW','Each attachment associates with 1 TGW RT','Routes can propagate into 1 or many TGW RTs','Shared cross-account via Resource Access Manager (RAM)','Enables transitive routing between VPCs']},
+
+  {id:'tgwrt',    label:'TGW\nRoute Table', icon:'🗂️', group:'connectivity',colorKey:'blue',   r:20, tier:4,
+   type:'TGW Route Table',
+   desc:'Controls how the TGW forwards traffic from each attachment. Spoke RT routes app VPCs to the Inspection VPC only. Egress RT routes Inspection VPC to DXGW/VPN. Separating these forces all traffic through a central firewall.',
+   rules:['Many TGW RTs per TGW','Attachment association: 1 per attachment','Route propagation: 1 attachment → many TGW RTs','Static or BGP-propagated routes','Key pattern: Spoke RT + Egress RT enforces central inspection']},
+
+  {id:'tgwatt',   label:'TGW\nAttachment',  icon:'🔗', group:'connectivity',colorKey:'blue',   r:18, tier:4,
+   type:'TGW Attachment',
+   desc:'The logical link between TGW and a VPC (or VPN or DX Gateway). For VPC type: you choose 1 subnet per AZ — TGW places an ENI in those subnets. The subnet\'s own route table must then have a route pointing to TGW.',
+   rules:['1 per VPC per TGW','Choose 1 subnet per AZ (min /28 CIDR)','TGW places an ENI in the chosen subnet','Subnet RT must have a route → TGW','Types: VPC, VPN, DXGW, TGW Peering']},
+
+  {id:'vgw',      label:'VGW',              icon:'🔑', group:'connectivity',colorKey:'blue',   r:20, tier:3,
+   type:'Virtual Private Gateway',
+   desc:'Attached to a VPC. The AWS-side termination point for Site-to-Site VPN tunnels and Direct Connect Private VIFs. Enables on-premises traffic to reach a single VPC.',
+   rules:['Exactly 1 per VPC','Can attach and detach from VPC','Terminates VPN tunnels or DX Private VIF','BGP or static routing','For multi-VPC access use TGW + DX Gateway instead']},
+
+  {id:'vpn',      label:'VPN',              icon:'🔒', group:'connectivity',colorKey:'blue',   r:20, tier:3,
+   type:'Site-to-Site VPN',
+   desc:'IPsec encrypted tunnels over the internet from on-premises to VGW or TGW. 2 tunnels per connection for redundancy. Can run alongside Direct Connect as a backup path.',
+   rules:['2 tunnels per VPN connection (for HA)','Connects to VGW (1 VPC) or TGW (many VPCs)','BGP or static routing','~1.25 Gbps max per tunnel','Use as DX backup — run both simultaneously']},
+
+  {id:'dx',       label:'Direct\nConnect',  icon:'⚡', group:'connectivity',colorKey:'blue',   r:24, tier:2,
+   type:'Direct Connect',
+   desc:'A dedicated private circuit from your data centre to AWS at a colocation facility. Lower and more consistent latency than VPN over internet. No encryption by default — add MACsec or IPsec if needed.',
+   rules:['Dedicated port: 1G / 10G / 100G','Hosted connection via partner: 50 Mbps to 10G','No encryption by default — add MACsec for L2','Private VIF → VGW, Transit VIF → DXGW → TGW','Resilience: two circuits from different providers + VPN']},
+
+  {id:'dxgw',     label:'DX Gateway',       icon:'🌐', group:'connectivity',colorKey:'blue',   r:22, tier:2,
+   type:'Direct Connect Gateway',
+   desc:'A global resource in your account. Allows one Direct Connect connection to reach multiple VGWs or TGWs across different regions and accounts. Transit VIF terminates on DXGW, which then connects to TGW.',
+   rules:['Global — not bound to a region','1 DXGW → up to 10 VGWs or TGWs','Transit VIF terminates here (not directly on TGW)','Private VIF terminates on VGW','Multiple DXGWs per account supported']},
+
+  {id:'peer',     label:'VPC Peering',      icon:'🤝', group:'connectivity',colorKey:'blue',   r:20, tier:3,
+   type:'VPC Peering Connection',
+   desc:'A direct 1:1 link between two VPCs (same or different accounts/regions). Non-transitive: if A is peered with B, and B is peered with C, traffic from A cannot reach C via B.',
+   rules:['1:1 per peering connection','Non-transitive — no hop-through routing','Both VPCs must add routes in their RTs','No overlapping CIDRs allowed','Cross-account and cross-region supported']},
+
+  {id:'pl',       label:'PrivateLink',      icon:'🔗', group:'connectivity',colorKey:'blue',   r:20, tier:4,
+   type:'AWS PrivateLink',
+   desc:'Expose a service privately without VPC peering. Producer: NLB + Endpoint Service. Consumer: Interface Endpoint (ENI in subnet). No CIDR overlap issue. Unidirectional — consumer initiates.',
+   rules:['Producer needs: NLB + VPC Endpoint Service','Consumer creates: Interface Endpoint (1 ENI per AZ)','No VPC peering or CIDR overlap constraints','Unidirectional — consumer initiates only','Used for cross-account private service sharing']},
+
+  {id:'r53res',   label:'R53 Resolver',     icon:'🔍', group:'dns',         colorKey:'teal',   r:20, tier:4,
+   type:'Route 53 Resolver',
+   desc:'Handles DNS inside VPCs via the implicit .2 resolver. Inbound endpoints let on-premises systems send DNS queries into AWS. Outbound endpoints forward specific domain queries from AWS to on-premises DNS servers.',
+   rules:['Default resolver: VPC base IP + 2 (e.g. 10.0.0.2)','Inbound endpoint: 1 ENI per AZ in chosen subnet','Outbound endpoint: min 2 IPs across 2 AZs','Forwarding rules define which domains go to on-prem','Share resolver rules across accounts via RAM']},
+
+  {id:'s3ep',     label:'S3/DDB\nGW EP',    icon:'🪣', group:'containment', colorKey:'navy',   r:18, tier:5,
+   type:'Gateway VPC Endpoint',
+   desc:'Free endpoint for S3 and DynamoDB only. Adds prefix list entries to your route table — traffic goes to the AWS network without traversing the internet or needing a NAT Gateway. No ENI is created.',
+   rules:['Free — no hourly charge','Only S3 and DynamoDB supported','Adds prefix list entries to route table','No ENI created — no Security Group needed','1 per service per VPC']},
+
+  {id:'ifep',     label:'Interface\nEndpoint', icon:'🔌', group:'containment',colorKey:'navy', r:20, tier:5,
+   type:'Interface VPC Endpoint (PrivateLink)',
+   desc:'PrivateLink-based endpoint for AWS services (SSM, ECR, STS, Secrets Manager, etc.) or your own Endpoint Service. Creates an ENI with a private IP in your subnet. DNS resolves the service hostname to this private IP automatically.',
+   rules:['Creates 1 ENI per AZ subnet you choose','1 Security Group can be applied to the ENI','Hourly cost + data processing fee','DNS: service FQDN resolves to private IP in VPC','Can be accessed from on-premises via DX or VPN']},
+
+  {id:'onprem',   label:'On-Premises',      icon:'🏭', group:'connectivity',colorKey:'blue',   r:24, tier:0,
+   type:'On-Premises Data Centre',
+   desc:'Your data centre or office. Connects to AWS via Site-to-Site VPN (IPsec over internet) or Direct Connect (dedicated private circuit). BGP advertises routes in both directions.',
+   rules:['VPN: IPsec over internet, 2 tunnels per connection','DX: dedicated circuit, lower latency','BGP advertises on-prem prefixes to AWS','AWS advertises VPC CIDRs back to on-prem','Best practice: both DX + VPN for full resilience']},
+];
+
+const EDGES = [
+  {s:'internet',t:'cf',      type:'route',   label:'CDN request'},
+  {s:'internet',t:'r53',     type:'route',   label:'DNS lookup'},
+  {s:'internet',t:'igw',     type:'route',   label:'inbound traffic'},
+  {s:'internet',t:'ga',      type:'route',   label:'anycast entry'},
+  {s:'cf',      t:'alb',     type:'route',   label:'origin request'},
+  {s:'ga',      t:'alb',     type:'route',   label:'routed to endpoint'},
+  {s:'ga',      t:'nlb',     type:'route',   label:'routed to endpoint'},
+  {s:'waf',     t:'alb',     type:'attach',  label:'WebACL on ALB'},
+  {s:'waf',     t:'cf',      type:'attach',  label:'WebACL on CF'},
+  {s:'r53',     t:'cf',      type:'route',   label:'DNS → CloudFront'},
+  {s:'r53',     t:'alb',     type:'route',   label:'DNS → ALB'},
+  {s:'r53',     t:'ga',      type:'route',   label:'DNS → Anycast IP'},
+  {s:'apigw',   t:'nlb',     type:'attach',  label:'VPC Link → NLB'},
+  {s:'region',  t:'vpc',     type:'contains',label:'contains VPCs'},
+  {s:'region',  t:'az',      type:'contains',label:'contains AZs'},
+  {s:'vpc',     t:'igw',     type:'attach',  label:'1 IGW per VPC'},
+  {s:'vpc',     t:'vgw',     type:'attach',  label:'1 VGW per VPC'},
+  {s:'vpc',     t:'rt',      type:'contains',label:'has route tables'},
+  {s:'vpc',     t:'sg',      type:'contains',label:'SGs scoped to VPC'},
+  {s:'vpc',     t:'subnet',  type:'contains',label:'contains subnets'},
+  {s:'vpc',     t:'s3ep',    type:'attach',  label:'gateway endpoint'},
+  {s:'az',      t:'subnet',  type:'contains',label:'subnet scoped to AZ'},
+  {s:'subnet',  t:'rt',      type:'attach',  label:'1 RT per subnet'},
+  {s:'subnet',  t:'nacl',    type:'attach',  label:'1 NACL per subnet'},
+  {s:'subnet',  t:'natgw',   type:'contains',label:'NAT GW in public subnet'},
+  {s:'subnet',  t:'nfw',     type:'contains',label:'NFW endpoint in /28'},
+  {s:'subnet',  t:'eni',     type:'contains',label:'ENIs in subnet'},
+  {s:'subnet',  t:'ifep',    type:'contains',label:'Interface EP ENI'},
+  {s:'subnet',  t:'r53res',  type:'contains',label:'Resolver ENI in subnet'},
+  {s:'rt',      t:'igw',     type:'route',   label:'0.0.0.0/0 → IGW (public)'},
+  {s:'rt',      t:'natgw',   type:'route',   label:'0.0.0.0/0 → NAT GW (private)'},
+  {s:'rt',      t:'tgw',     type:'route',   label:'prefix → TGW'},
+  {s:'rt',      t:'nfw',     type:'route',   label:'traffic → NFW endpoint'},
+  {s:'rt',      t:'vgw',     type:'route',   label:'on-prem prefix → VGW'},
+  {s:'rt',      t:'s3ep',    type:'route',   label:'S3/DDB prefix list'},
+  {s:'eni',     t:'ec2',     type:'attach',  label:'ENI attached to EC2'},
+  {s:'sg',      t:'eni',     type:'attach',  label:'up to 5 SGs per ENI'},
+  {s:'natgw',   t:'eip',     type:'attach',  label:'1 Elastic IP per NAT GW'},
+  {s:'igw',     t:'internet',type:'route',   label:'internet egress/ingress'},
+  {s:'subnet',  t:'alb',     type:'attach',  label:'1 ALB node per AZ subnet'},
+  {s:'subnet',  t:'nlb',     type:'attach',  label:'1 NLB node per AZ subnet'},
+  {s:'subnet',  t:'gwlb',    type:'attach',  label:'GWLB Endpoint per subnet'},
+  {s:'alb',     t:'tg',      type:'attach',  label:'listener → target group'},
+  {s:'nlb',     t:'tg',      type:'attach',  label:'listener → target group'},
+  {s:'tg',      t:'ec2',     type:'attach',  label:'targets EC2/ECS tasks'},
+  {s:'tgwatt',  t:'vpc',     type:'attach',  label:'attaches VPC to TGW'},
+  {s:'tgwatt',  t:'tgw',     type:'attach',  label:'attachment on TGW'},
+  {s:'tgw',     t:'tgwrt',   type:'contains',label:'has TGW route tables'},
+  {s:'tgwrt',   t:'tgwatt',  type:'attach',  label:'association + propagation'},
+  {s:'tgw',     t:'vpn',     type:'attach',  label:'VPN attachment to TGW'},
+  {s:'tgw',     t:'dxgw',    type:'attach',  label:'DXGW → TGW association'},
+  {s:'vgw',     t:'vpn',     type:'attach',  label:'VPN terminates on VGW'},
+  {s:'vgw',     t:'dxgw',    type:'attach',  label:'Private VIF → VGW'},
+  {s:'dx',      t:'dxgw',    type:'attach',  label:'DX circuit → DX Gateway'},
+  {s:'onprem',  t:'dx',      type:'route',   label:'dedicated DX circuit'},
+  {s:'onprem',  t:'vpn',     type:'route',   label:'IPsec VPN over internet'},
+  {s:'nlb',     t:'pl',      type:'attach',  label:'NLB backs Endpoint Service'},
+  {s:'pl',      t:'ifep',    type:'attach',  label:'consumer Interface Endpoint'},
+  {s:'r53',     t:'vpc',     type:'attach',  label:'private hosted zone → VPC'},
+  {s:'r53res',  t:'r53',     type:'attach',  label:'Resolver → R53'},
+];
+
+const SCENARIOS = [
+  {id:'all',          icon:'🗺️', label:'Full Map',              colorKey:'navy',
+   nodes:null, desc:'All AWS networking services'},
+  {id:'web-app',      icon:'🌐', label:'Public Web App',         colorKey:'teal',
+   nodes:['internet','r53','cf','waf','alb','tg','ec2','subnet','vpc','igw','rt','sg','natgw','eip'],
+   desc:'Route53 → CloudFront → WAF → ALB → EC2'},
+  {id:'private',      icon:'🔒', label:'Private Subnet Access',  colorKey:'slate',
+   nodes:['internet','igw','subnet','natgw','eip','ec2','eni','sg','nacl','rt','vpc'],
+   desc:'Private subnet → NAT GW → internet egress'},
+  {id:'hybrid',       icon:'🏭', label:'On-Prem Hybrid',         colorKey:'blue',
+   nodes:['onprem','dx','dxgw','tgw','tgwrt','tgwatt','vpc','subnet','rt','vgw','vpn'],
+   desc:'On-prem → DX or VPN → TGW → VPCs'},
+  {id:'inspection',   icon:'🔥', label:'Centralised Firewall',    colorKey:'slate',
+   nodes:['tgw','tgwrt','tgwatt','nfw','subnet','rt','vpc','dx','dxgw','onprem'],
+   desc:'Hub-spoke inspection via NFW + TGW route tables'},
+  {id:'privatelink',  icon:'🔗', label:'PrivateLink & Endpoints', colorKey:'blue',
+   nodes:['vpc','subnet','nlb','pl','ifep','tg','ec2','sg','s3ep'],
+   desc:'Private service exposure via PrivateLink'},
+  {id:'dns-arch',     icon:'🔍', label:'DNS Architecture',        colorKey:'teal',
+   nodes:['r53','r53res','vpc','subnet','onprem','dx','dxgw','internet'],
+   desc:'Route 53 + Resolver + hybrid DNS forwarding'},
+  {id:'lb-types',     icon:'⚖️', label:'Load Balancer Types',     colorKey:'indigo',
+   nodes:['internet','alb','nlb','gwlb','tg','ec2','waf','sg','subnet','vpc'],
+   desc:'ALB vs NLB vs GWLB — placement and use cases'},
+  {id:'security-deep',icon:'🛡️', label:'Security Layers',         colorKey:'slate',
+   nodes:['waf','cf','sg','nacl','nfw','tgw','igw','internet','alb','subnet','vpc'],
+   desc:'WAF → NACL → Security Group → NFW in depth'},
+  {id:'tgw-deep',     icon:'🔁', label:'TGW Deep Dive',            colorKey:'blue',
+   nodes:['tgw','tgwrt','tgwatt','vpc','subnet','rt','dx','dxgw','vpn','onprem','vgw'],
+   desc:'TGW attachments, route tables, propagation'},
+];
+
+const GROUPS = [
+  {id:'containment',  label:'Containment',   colorKey:'navy'},
+  {id:'connectivity', label:'Connectivity',  colorKey:'blue'},
+  {id:'security',     label:'Security',      colorKey:'slate'},
+  {id:'lb',           label:'Load Balancers',colorKey:'indigo'},
+  {id:'dns',          label:'DNS / Edge',    colorKey:'teal'},
+  {id:'edge',         label:'Edge / Global', colorKey:'teal'},
+  {id:'compute',      label:'Compute',       colorKey:'teal'},
+];
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+const nodeById = {};
+const nodes = NODES_DEF.map(n => ({...n, x:0, y:0, vx:0, vy:0, visible:true, alpha:1}));
+nodes.forEach(n => nodeById[n.id] = n);
+
+let transform = {x:0, y:0, scale:1};
+// Canvas pan state
+let panning=false, panStart=null;
+// Node drag state
+let dragNode=null, dragOffset={x:0,y:0};
+let mouseDownPos=null;
+let hoveredNode=null, selectedNode=null;
+let activeScenario='all', activeGroup=null;
+let showLabels=true, showEdges=true, physicsOn=true;
+let ticks=0;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Resolve color from key ──
+function col(colorKey) { return C[colorKey] || C.navy; }
+function nodeCol(n) { return col(n.colorKey); }
+
+// ══════════════════════════════════════════════════════════
+// THEME TOGGLE
+// ══════════════════════════════════════════════════════════
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  theme = theme === 'light' ? 'dark' : 'light';
+  C = getColors(theme);
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('theme-toggle');
+  btn.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+  // Update legend lines
+  updateLegendColors();
+  buildSidebar();
+});
+
+function updateLegendColors() {
+  const lines = document.querySelectorAll('.leg-line');
+  if (theme === 'dark') {
+    lines[0].style.borderTopColor = '#6b9eff';
+    lines[1].style.borderTopColor = '#60a0ff';
+    lines[2].style.borderTopColor = '#fbbf24';
+  } else {
+    lines[0].style.borderTopColor = '#1c2333';
+    lines[1].style.borderTopColor = '#2563eb';
+    lines[2].style.borderTopColor = '#b45309';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════════════════════
+function buildSidebar() {
+  // Scenarios
+  const sc = document.getElementById('scenarios');
+  sc.innerHTML = '';
+  SCENARIOS.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'sc-pill' + (s.id === activeScenario ? ' active' : '');
+    btn.style.color = col(s.colorKey);
+    btn.innerHTML = `<span class="sc-icon">${s.icon}</span><span class="sc-label">${s.label}</span>`;
+    btn.title = s.desc;
+    btn.addEventListener('click', () => applyScenario(s.id));
+    sc.appendChild(btn);
+  });
+
+  // Group filters
+  const fl = document.getElementById('filters');
+  fl.innerHTML = '';
+  GROUPS.forEach(g => {
+    const btn = document.createElement('button');
+    const active = activeGroup === g.id;
+    btn.className = 'f-chip' + (active ? ' active' : '');
+    btn.style.borderColor = col(g.colorKey);
+    btn.style.color = active ? '#ffffff' : col(g.colorKey);
+    if (active) btn.style.background = col(g.colorKey);
+    else btn.style.background = 'transparent';
+    btn.textContent = g.label;
+    btn.addEventListener('click', () => toggleGroup(g.id));
+    fl.appendChild(btn);
+  });
+
+  // Service list
+  const list = document.getElementById('svc-list');
+  list.innerHTML = '';
+  [...nodes]
+    .filter(n => n.visible)
+    .sort((a,b) => a.label.replace('\n',' ').localeCompare(b.label.replace('\n',' ')))
+    .forEach(n => {
+      const row = document.createElement('div');
+      row.className = 'svc-row' + (selectedNode === n ? ' active' : '');
+      row.innerHTML = `<div class="svc-dot" style="background:${nodeCol(n)};border-color:${nodeCol(n)}"></div>
+        <span class="svc-name">${n.icon || ''} ${n.label.replace('\n',' ')}</span>
+        <span class="svc-badge-sm">${n.group}</span>`;
+      row.addEventListener('click', () => focusNode(n));
+      list.appendChild(row);
+    });
+}
+
+function applyScenario(id) {
+  activeScenario = id; activeGroup = null;
+  const sc = SCENARIOS.find(s => s.id === id);
+  if (!sc) return;
+  nodes.forEach(n => n.visible = sc.nodes === null || sc.nodes.includes(n.id));
+  nodes.forEach(n => n.alpha = 1);
+  selectedNode = null; ticks = 0;
+  setFocusLabel(sc.nodes === null ? null : sc.label);
+  hideInfo(); buildSidebar();
+}
+
+function toggleGroup(gid) {
+  if (activeGroup === gid) {
+    activeGroup = null;
+    nodes.forEach(n => n.visible = true);
+  } else {
+    activeGroup = gid; activeScenario = null;
+    nodes.forEach(n => n.visible = n.group === gid);
+  }
+  nodes.forEach(n => n.alpha = 1);
+  selectedNode = null; ticks = 0;
+  buildSidebar();
+}
+
+function focusNode(n) {
+  selectedNode = n;
+  const connected = new Set([n.id]);
+  EDGES.forEach(e => {
+    if (e.s === n.id) connected.add(e.t);
+    if (e.t === n.id) connected.add(e.s);
+  });
+  nodes.forEach(nd => nd.alpha = connected.has(nd.id) ? 1 : 0.1);
+  showInfo(n); buildSidebar();
+  transform.x = canvas.width/2 - n.x * transform.scale;
+  transform.y = canvas.height/2 - n.y * transform.scale;
+}
+
+function clearFocus() {
+  selectedNode = null;
+  nodes.forEach(n => n.alpha = 1);
+  hideInfo(); buildSidebar();
+}
+
+function showInfo(n) {
+  document.getElementById('info-icon').textContent = n.icon || '';
+  document.getElementById('info-name').textContent = n.label.replace('\n',' ');
+  document.getElementById('info-name').style.color = nodeCol(n);
+  document.getElementById('info-type').textContent = n.type || '';
+  document.getElementById('info-desc').textContent = n.desc || '';
+  const rules = document.getElementById('info-rules');
+  rules.innerHTML = '';
+  (n.rules || []).forEach(r => {
+    const b = document.createElement('span');
+    b.className = 'info-badge';
+    b.style.background = nodeCol(n) + '18';
+    b.style.color = nodeCol(n);
+    b.style.borderColor = nodeCol(n) + '40';
+    b.textContent = r;
+    rules.appendChild(b);
+  });
+  document.getElementById('info').classList.add('show');
+}
+function hideInfo() { document.getElementById('info').classList.remove('show'); }
+function setFocusLabel(text) {
+  const el = document.getElementById('focus-label');
+  if (text) { el.textContent = '● ' + text; el.classList.add('show'); }
+  else el.classList.remove('show');
+}
+
+// Search
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) { nodes.forEach(n => n.alpha = 1); return; }
+  nodes.forEach(n => {
+    const hit = n.label.toLowerCase().includes(q) || n.type.toLowerCase().includes(q)
+      || (n.desc||'').toLowerCase().includes(q) || n.id.toLowerCase().includes(q)
+      || (n.rules||[]).some(r => r.toLowerCase().includes(q));
+    n.alpha = hit ? 1 : 0.07;
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+// PHYSICS
+// ══════════════════════════════════════════════════════════
+function initPositions() {
+  const w = canvas.width, h = canvas.height;
+  const tC = {}, tI = {};
+  nodes.forEach(n => { const t = n.tier??4; tC[t]=(tC[t]||0)+1; });
+  nodes.forEach(n => {
+    const t = n.tier??4; tI[t] = tI[t] || 0;
+    const total = tC[t];
+    const idx = tI[t];
+    // Spread evenly across width with small random jitter
+    n.x = (idx+1) * w / (total+1) + (Math.random()-0.5)*40;
+    n.y = 80 + (t/8) * (h-160) + (Math.random()-0.5)*30;
+    n.x = Math.max(n.r+10, Math.min(w-n.r-10, n.x));
+    n.y = Math.max(n.r+10, Math.min(h-n.r-10, n.y));
+    tI[t]++; n.vx=0; n.vy=0; n.pinned=false;
+  });
+  transform = {x:0, y:0, scale:1};
+}
+
+function simulate() {
+  if (!physicsOn) return;
+  const vis = nodes.filter(n => n.visible && !n.pinned);
+  const w = canvas.width, h = canvas.height;
+
+  // Strong repulsion — key fix for overlapping
+  for (let i=0; i<vis.length; i++) {
+    for (let j=i+1; j<vis.length; j++) {
+      const a=vis[i], b=vis[j];
+      const dx=b.x-a.x, dy=b.y-a.y;
+      const d=Math.hypot(dx,dy)||0.01;
+      const minD = (a.r+b.r) * 2.8 + 20; // generous padding
+      if (d < minD) {
+        const force = (minD - d) / minD * 0.7;
+        const fx=dx/d*force, fy=dy/d*force;
+        a.vx-=fx; a.vy-=fy;
+        b.vx+=fx; b.vy+=fy;
+      }
+      // Inverse square repulsion at all distances (keeps graph open)
+      const repel = 2200 / (d*d+1);
+      a.vx -= dx/d*repel*0.001;
+      a.vy -= dy/d*repel*0.001;
+      b.vx += dx/d*repel*0.001;
+      b.vy += dy/d*repel*0.001;
+    }
+  }
+
+  // Edge spring attraction
+  EDGES.forEach(e => {
+    const a=nodeById[e.s], b=nodeById[e.t];
+    if (!a||!b||!a.visible||!b.visible) return;
+    if (a.pinned && b.pinned) return;
+    const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||0.01;
+    const rest = 200;
+    const f=(d-rest)/d*0.025;
+    if (!a.pinned) { a.vx+=dx*f; a.vy+=dy*f; }
+    if (!b.pinned) { b.vx-=dx*f; b.vy-=dy*f; }
+  });
+
+  // Tier gravity — gently pull nodes toward their tier row
+  vis.forEach(n => {
+    const ty = 80 + ((n.tier??4)/8)*(h-160);
+    n.vy += (ty-n.y)*0.012;
+    // Weak centering horizontally
+    n.vx += (w/2-n.x)*0.001;
+  });
+
+  // Integrate with damping
+  vis.forEach(n => {
+    n.vx *= 0.78; n.vy *= 0.78;
+    n.x = Math.max(n.r+8, Math.min(w-n.r-8, n.x+n.vx));
+    n.y = Math.max(n.r+8, Math.min(h-n.r-8, n.y+n.vy));
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+function edgeColor(type, opacity) {
+  if (theme === 'dark') {
+    if (type==='contains') return `rgba(160,180,230,${opacity})`;
+    if (type==='attach')   return `rgba(96,160,255,${opacity})`;
+    if (type==='route')    return `rgba(255,165,60,${opacity})`;
+  } else {
+    if (type==='contains') return `rgba(28,35,51,${opacity})`;
+    if (type==='attach')   return `rgba(37,99,235,${opacity})`;
+    if (type==='route')    return `rgba(146,64,14,${opacity})`;
+  }
+  return `rgba(128,128,128,${opacity})`;
+}
+
+function draw() {
+  const w=canvas.width, h=canvas.height;
+
+  // Background
+  ctx.fillStyle = theme==='dark' ? '#111520' : '#f5f3ef';
+  ctx.fillRect(0,0,w,h);
+
+  // Dot grid
+  ctx.fillStyle = theme==='dark' ? 'rgba(255,255,255,0.022)' : 'rgba(0,0,0,0.05)';
+  for (let x=0; x<w; x+=48) {
+    for (let y=0; y<h; y+=48) {
+      ctx.beginPath(); ctx.arc(x,y,1.2,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  ctx.save();
+  ctx.translate(transform.x, transform.y);
+  ctx.scale(transform.scale, transform.scale);
+
+  // ── EDGES ──
+  if (showEdges) {
+    EDGES.forEach(e => {
+      const a=nodeById[e.s], b=nodeById[e.t];
+      if (!a||!b||!a.visible||!b.visible) return;
+      const ea = Math.min(a.alpha??1, b.alpha??1);
+      if (ea < 0.05) return;
+      const isHov = (hoveredNode||selectedNode) &&
+        ((hoveredNode||selectedNode).id===a.id || (hoveredNode||selectedNode).id===b.id);
+      const op = (isHov ? 0.88 : 0.22) * ea;
+
+      const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy)||1;
+      const cxp=(a.x+b.x)/2 - dy/len*22;
+      const cyp=(a.y+b.y)/2 + dx/len*22;
+
+      ctx.save();
+      ctx.strokeStyle = edgeColor(e.type, op);
+      ctx.lineWidth = isHov ? 2.5 : 1.3;
+      if (e.type==='attach') ctx.setLineDash([5,5]);
+      else ctx.setLineDash([]);
+
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(cxp, cyp, b.x, b.y);
+      ctx.stroke();
+
+      // Arrow
+      if (isHov) {
+        const t=0.82;
+        const ax2=Math.pow(1-t,2)*a.x+2*(1-t)*t*cxp+t*t*b.x;
+        const ay2=Math.pow(1-t,2)*a.y+2*(1-t)*t*cyp+t*t*b.y;
+        const tx2=2*(1-t)*(cxp-a.x)+2*t*(b.x-cxp);
+        const ty2=2*(1-t)*(cyp-a.y)+2*t*(b.y-cyp);
+        const tl=Math.hypot(tx2,ty2)||1;
+        const ang=Math.atan2(ty2/tl, tx2/tl);
+        ctx.setLineDash([]);
+        ctx.fillStyle=ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.moveTo(ax2+Math.cos(ang)*7, ay2+Math.sin(ang)*7);
+        ctx.lineTo(ax2+Math.cos(ang+2.5)*4, ay2+Math.sin(ang+2.5)*4);
+        ctx.lineTo(ax2+Math.cos(ang-2.5)*4, ay2+Math.sin(ang-2.5)*4);
+        ctx.closePath(); ctx.fill();
+      }
+
+      // Edge label
+      if (isHov && e.label) {
+        ctx.setLineDash([]);
+        const lx=(a.x+b.x)/2 - dy/len*36;
+        const ly=(a.y+b.y)/2 + dx/len*36;
+        ctx.font = 'bold 11px "Atkinson Hyperlegible"';
+        const tw = ctx.measureText(e.label).width;
+        const pad=6, ph=16;
+        ctx.fillStyle = theme==='dark' ? 'rgba(24,29,42,0.96)' : 'rgba(255,255,255,0.97)';
+        ctx.shadowColor='rgba(0,0,0,0.18)'; ctx.shadowBlur=8;
+        roundRect(ctx, lx-tw/2-pad, ly-ph/2, tw+pad*2, ph, 4);
+        ctx.fill(); ctx.shadowBlur=0;
+        ctx.strokeStyle = theme==='dark' ? 'rgba(80,100,160,0.4)' : 'rgba(0,0,0,0.12)';
+        ctx.lineWidth=1; roundRect(ctx, lx-tw/2-pad, ly-ph/2, tw+pad*2, ph, 4); ctx.stroke();
+        ctx.fillStyle = theme==='dark' ? '#c7d0e8' : '#1a1a2e';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(e.label, lx, ly);
+      }
+      ctx.restore();
+    });
+  }
+
+  // ── NODES ──
+  nodes.forEach(n => {
+    if (!n.visible) return;
+    const alpha = n.alpha ?? 1;
+    const isHov = hoveredNode && hoveredNode.id===n.id;
+    const isSel = selectedNode && selectedNode.id===n.id;
+    const nc = nodeCol(n);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Outer selection ring
+    if (isSel) {
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r+8, 0, Math.PI*2);
+      ctx.strokeStyle = nc + '88';
+      ctx.lineWidth=2.5; ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Drop shadow
+    if (isHov || isSel) {
+      ctx.shadowColor = theme==='dark' ? nc+'55' : 'rgba(0,0,0,0.18)';
+      ctx.shadowBlur = 18; ctx.shadowOffsetY = 3;
+    }
+
+    // Circle body
+    ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+    if (theme==='dark') {
+      ctx.fillStyle = isHov||isSel ? nc+'28' : '#1c2233';
+    } else {
+      ctx.fillStyle = isHov||isSel ? nc+'14' : '#ffffff';
+    }
+    ctx.fill();
+    ctx.strokeStyle = nc;
+    ctx.lineWidth = isHov||isSel ? 3 : 2;
+    ctx.stroke();
+    ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+
+    // Icon
+    const iconSize = Math.max(12, n.r * 0.62);
+    ctx.font = `${iconSize}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(n.icon||'', n.x, n.y - (showLabels ? n.r*0.16 : 0));
+
+    // Label — canvas font, bigger than before
+    if (showLabels) {
+      const lines = n.label.split('\n');
+      const fs = Math.max(10, Math.min(13, n.r * 0.46));
+      ctx.font = `${isHov||isSel ? 'bold' : '400'} ${fs}px "Atkinson Hyperlegible"`;
+      ctx.fillStyle = isHov||isSel ? nc : (theme==='dark' ? '#c7d0e8' : '#2a2a3a');
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const lh = Math.max(10, fs * 1.2);
+      lines.forEach((line, i) => {
+        ctx.fillText(line, n.x, n.y + n.r*0.32 + (i-(lines.length-1)/2)*lh);
+      });
+    }
+
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y, x+w,y+r, r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h, x+w-r,y+h, r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h, x,y+h-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x,y, x+r,y, r);
+  ctx.closePath();
+}
+
+// ══════════════════════════════════════════════════════════
+// INTERACTION — node drag vs canvas pan
+// ══════════════════════════════════════════════════════════
+function toWorld(cx,cy) { return {x:(cx-transform.x)/transform.scale, y:(cy-transform.y)/transform.scale}; }
+function hitTest(cx,cy) {
+  const {x,y}=toWorld(cx,cy);
+  for (let i=nodes.length-1; i>=0; i--) {
+    const n=nodes[i]; if (!n.visible) continue;
+    if (Math.hypot(n.x-x, n.y-y) < n.r+8) return n;
+  } return null;
+}
+
+canvas.addEventListener('mousedown', e => {
+  const rect=canvas.getBoundingClientRect();
+  const cx=e.clientX-rect.left, cy=e.clientY-rect.top;
+  mouseDownPos={x:e.clientX, y:e.clientY};
+  const hit=hitTest(cx,cy);
+  if (hit) {
+    // Start dragging this node
+    dragNode=hit;
+    dragNode.pinned=true;
+    dragNode.vx=0; dragNode.vy=0;
+    const w=toWorld(cx,cy);
+    dragOffset={x:w.x-hit.x, y:w.y-hit.y};
+    canvas.style.cursor='grabbing';
+  } else {
+    // Start panning canvas
+    panning=true;
+    panStart={x:cx, y:cy};
+    canvas.style.cursor='grabbing';
+  }
+});
+
+window.addEventListener('mouseup', e => {
+  if (dragNode) {
+    dragNode.pinned=false;
+    // If barely moved = click → focus
+    if (mouseDownPos && Math.hypot(e.clientX-mouseDownPos.x, e.clientY-mouseDownPos.y)<5) {
+      focusNode(dragNode);
+    }
+    dragNode=null;
+  } else if (panning) {
+    // If barely moved = click on canvas bg → clear focus
+    if (mouseDownPos && Math.hypot(e.clientX-mouseDownPos.x, e.clientY-mouseDownPos.y)<5) {
+      clearFocus();
+    }
+    panning=false;
+  }
+  canvas.style.cursor='grab';
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect=canvas.getBoundingClientRect();
+  const cx=e.clientX-rect.left, cy=e.clientY-rect.top;
+
+  if (dragNode) {
+    // Move the dragged node in world space
+    const w=toWorld(cx,cy);
+    dragNode.x=w.x-dragOffset.x;
+    dragNode.y=w.y-dragOffset.y;
+    dragNode.vx=0; dragNode.vy=0;
+    canvas.style.cursor='grabbing';
+    return;
+  }
+
+  if (panning && panStart) {
+    transform.x+=cx-panStart.x;
+    transform.y+=cy-panStart.y;
+    panStart={x:cx,y:cy};
+    canvas.style.cursor='grabbing';
+    return;
+  }
+
+  const n=hitTest(cx,cy);
+  hoveredNode=n;
+  canvas.style.cursor=n?'pointer':'grab';
+});
+
+canvas.addEventListener('mouseleave', () => { hoveredNode=null; });
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  const cx=e.clientX-rect.left, cy=e.clientY-rect.top;
+  const f=e.deltaY<0?1.11:0.91;
+  const ns=Math.max(0.15,Math.min(5,transform.scale*f));
+  transform.x=cx-(cx-transform.x)*(ns/transform.scale);
+  transform.y=cy-(cy-transform.y)*(ns/transform.scale);
+  transform.scale=ns;
+},{passive:false});
+
+// Touch — finger drag on node vs canvas pan
+let lastTD=null, touchDragNode=null, touchPanLast=null;
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===1){
+    const rect=canvas.getBoundingClientRect();
+    const cx=e.touches[0].clientX-rect.left, cy=e.touches[0].clientY-rect.top;
+    const hit=hitTest(cx,cy);
+    if(hit){
+      touchDragNode=hit; hit.pinned=true; hit.vx=0; hit.vy=0;
+      const w=toWorld(cx,cy); dragOffset={x:w.x-hit.x,y:w.y-hit.y};
+    } else {
+      touchPanLast={x:cx,y:cy};
+    }
+  }
+},{passive:false});
+
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===1){
+    const rect=canvas.getBoundingClientRect();
+    const cx=e.touches[0].clientX-rect.left, cy=e.touches[0].clientY-rect.top;
+    if(touchDragNode){
+      const w=toWorld(cx,cy);
+      touchDragNode.x=w.x-dragOffset.x; touchDragNode.y=w.y-dragOffset.y;
+      touchDragNode.vx=0; touchDragNode.vy=0;
+    } else if(touchPanLast){
+      transform.x+=cx-touchPanLast.x; transform.y+=cy-touchPanLast.y;
+      touchPanLast={x:cx,y:cy};
+    }
+  }
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    if(lastTD) transform.scale=Math.max(0.15,Math.min(5,transform.scale*(d/lastTD)));
+    lastTD=d;
+  }
+},{passive:false});
+
+canvas.addEventListener('touchend',()=>{
+  if(touchDragNode){ touchDragNode.pinned=false; touchDragNode=null; }
+  touchPanLast=null; lastTD=null;
+});
+
+// Toolbar
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  initPositions(); ticks=0; clearFocus();
+  activeScenario='all'; activeGroup=null;
+  nodes.forEach(n=>{n.visible=true;n.alpha=1;});
+  buildSidebar(); setFocusLabel(null);
+});
+document.getElementById('btn-labels').addEventListener('click',function(){
+  showLabels=!showLabels; this.textContent=showLabels?'Labels ON':'Labels OFF';
+  this.classList.toggle('on',showLabels);
+});
+document.getElementById('btn-edges').addEventListener('click',function(){
+  showEdges=!showEdges; this.textContent=showEdges?'Edges ON':'Edges OFF';
+  this.classList.toggle('on',showEdges);
+});
+document.getElementById('btn-physics').addEventListener('click',function(){
+  physicsOn=!physicsOn; this.textContent=physicsOn?'Physics ON':'Physics OFF';
+  this.classList.toggle('on',physicsOn);
+});
+document.getElementById('info-close').addEventListener('click',clearFocus);
+document.getElementById('toggle-panel').addEventListener('click',()=>{
+  const p=document.getElementById('panel');
+  p.classList.toggle('collapsed');
+  setTimeout(()=>{
+    canvas.width=document.getElementById('canvas-area').clientWidth;
+  },310);
+});
+
+function resize() {
+  const wrap=document.getElementById('canvas-area');
+  canvas.width=wrap.clientWidth; canvas.height=wrap.clientHeight;
+  initPositions(); buildSidebar();
+}
+window.addEventListener('resize',()=>{resize();ticks=0;});
+
+function loop() { simulate(); draw(); requestAnimationFrame(loop); }
+resize(); buildSidebar(); loop();
+</script>
+</body>
+</html>
