@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SAP-C02 Knowledge Graph Viewer</title>
+<style>
+:root {
+  --bg:#f5f5f7; --panel:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:#d2d2d7;
+  --blue:#007aff; --green:#34c759; --orange:#ff9500; --red:#ff3b30; --purple:#af52de;
+  --shadow:0 8px 30px rgba(0,0,0,.08);
+}
+[data-theme="dark"] { --bg:#161617; --panel:#232325; --text:#f5f5f7; --muted:#a1a1a6; --line:#3a3a3c; --shadow:0 8px 30px rgba(0,0,0,.35); }
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.header-inner{display:flex;gap:12px;align-items:center;padding:12px 18px;max-width:1500px;margin:auto;flex-wrap:wrap}
+h1{font-size:17px;margin:0;letter-spacing:-.02em}.sub{color:var(--muted);font-size:12px}.spacer{flex:1}
+input,select,button{font:inherit;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);padding:8px 10px}button{cursor:pointer}button.primary{background:var(--blue);color:white;border-color:var(--blue)}
+.layout{display:grid;grid-template-columns:320px 1fr 390px;gap:14px;max-width:1500px;margin:14px auto;padding:0 14px;height:calc(100vh - 76px)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;min-height:0}.panel-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}.panel-title{font-weight:700;font-size:14px}.panel-body{padding:12px;overflow:auto;height:calc(100% - 48px)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}.stat{background:var(--bg);border-radius:12px;padding:9px}.stat b{display:block;font-size:18px}.stat span{font-size:11px;color:var(--muted)}
+.item{padding:10px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:var(--panel)}.item:hover,.item.active{border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 15%,transparent)}.item-title{font-weight:650;font-size:13px}.item-meta{font-size:11px;color:var(--muted);margin-top:3px}
+#graph{width:100%;height:100%;display:block;background:radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--blue) 5%,transparent),transparent 58%)}
+.node{cursor:pointer}.node circle{stroke:var(--panel);stroke-width:2}.node text{font-size:10px;paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round;fill:var(--text);pointer-events:none}.edge{stroke:var(--line);stroke-opacity:.65}.edge.active{stroke:var(--blue);stroke-opacity:1;stroke-width:2.5}.node.active circle{stroke:var(--blue);stroke-width:4}.node.dim,.edge.dim{opacity:.16}
+.badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;margin:2px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}.badge.Domain{color:var(--orange)}.badge.DecisionPattern{color:var(--blue)}.badge.Concept{color:var(--green)}.badge.AntiPattern{color:var(--red)}
+.block{border-left:4px solid var(--blue);background:var(--bg);border-radius:10px;padding:10px;margin:10px 0}.block h3{font-size:11px;margin:0 0 5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.block.if{border-color:var(--orange)}.block.then{border-color:var(--green)}.block.never{border-color:var(--red)}.block.why{border-color:var(--blue)}
+ul{margin:6px 0 0 18px;padding:0}.muted{color:var(--muted)}.small{font-size:12px}.hidden{display:none!important}
+@media(max-width:1050px){.layout{grid-template-columns:1fr;height:auto}.panel{height:520px}.detail{height:auto}.graph-panel{order:-1}}
+</style>
+</head>
+<body>
+<header><div class="header-inner">
+  <div><h1>SAP-C02 Knowledge Graph</h1><div class="sub">Decision patterns → AWS concepts → exam traps</div></div>
+  <input id="search" placeholder="Search pattern, service, trap…" style="min-width:260px;flex:1" />
+  <select id="domainFilter"><option value="">All domains</option></select>
+  <select id="typeFilter"><option value="">All node types</option><option>Domain</option><option>DecisionPattern</option><option>Concept</option><option>AntiPattern</option></select>
+  <button id="resetBtn">Reset</button><button id="themeBtn">Dark</button>
+</div></header>
+<main class="layout">
+  <section class="panel"><div class="panel-head"><div class="panel-title">Explore</div><span id="resultCount" class="muted small"></span></div><div class="panel-body">
+    <div class="stats" id="stats"></div><div id="list"></div>
+  </div></section>
+  <section class="panel graph-panel"><div class="panel-head"><div class="panel-title">Graph</div><span class="muted small">Click nodes. Drag to reposition.</span><span class="spacer"></span><button class="primary" id="fitBtn">Fit</button></div><svg id="graph"></svg></section>
+  <section class="panel detail"><div class="panel-head"><div class="panel-title">Details</div></div><div class="panel-body" id="detail"><p class="muted">Select a node to inspect its relationships and decision rule.</p></div></section>
+</main>
+<script>
+const DATA_URL = 'data/sap_c02_knowledge_graph.json';
+let graph, nodes, edges, byId, selected=null, visibleIds=new Set(), sim;
+const $ = id => document.getElementById(id);
+const color = t => ({KnowledgeBase:'#8e8e93',Domain:'#ff9500',DecisionPattern:'#007aff',Concept:'#34c759',AntiPattern:'#ff3b30'}[t]||'#8e8e93');
+const esc = s => String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+async function load(){
+  try { graph = await fetch(DATA_URL).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }); }
+  catch(e){ $('detail').innerHTML = `<p><b>Could not load ${DATA_URL}</b></p><p class="muted">Run a local server from this folder:</p><pre>python3 -m http.server 8000</pre><p class="muted">Then open http://localhost:8000/sap_c02_kg_viewer.html</p>`; throw e; }
+  nodes = graph.nodes; edges = graph.edges; byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  populateFilters(); renderStats(); applyFilters(); setupEvents();
+}
+function populateFilters(){
+  nodes.filter(n=>n.type==='Domain').sort((a,b)=>(a.order||0)-(b.order||0)).forEach(d=>{ let o=document.createElement('option'); o.value=d.id; o.textContent=d.label; $('domainFilter').appendChild(o); });
+}
+function renderStats(){
+  const counts = nodes.reduce((a,n)=>(a[n.type]=(a[n.type]||0)+1,a),{});
+  $('stats').innerHTML = ['DecisionPattern','Concept','AntiPattern','Domain'].map(k=>`<div class="stat"><b>${counts[k]||0}</b><span>${k}</span></div>`).join('');
+}
+function domainPatterns(domainId){ return new Set(edges.filter(e=>e.source===domainId && e.relation==='CONTAINS_PATTERN').map(e=>e.target)); }
+function applyFilters(){
+  const q=$('search').value.toLowerCase().trim(), type=$('typeFilter').value, domain=$('domainFilter').value;
+  let domainSet = domain ? domainPatterns(domain) : null;
+  visibleIds = new Set(nodes.filter(n=>{
+    if(type && n.type!==type) return false;
+    const hay = [n.label,n.if_when,n.then,n.why,(n.never||[]).join(' ')].join(' ').toLowerCase();
+    if(q && !hay.includes(q)) return false;
+    if(domainSet){
+      if(n.id===domain) return true;
+      if(n.type==='DecisionPattern') return domainSet.has(n.id);
+      const linkedPatterns = edges.filter(e=>(e.target===n.id||e.source===n.id)).map(e=>e.source).filter(id=>domainSet.has(id));
+      return linkedPatterns.length>0;
+    }
+    return n.type !== 'KnowledgeBase';
+  }).map(n=>n.id));
+  renderList(); renderGraph();
+}
+function renderList(){
+  const listNodes = nodes.filter(n=>visibleIds.has(n.id)).sort((a,b)=> (typeRank(a.type)-typeRank(b.type)) || (a.order||9999)-(b.order||9999) || a.label.localeCompare(b.label));
+  $('resultCount').textContent = `${listNodes.length} nodes`;
+  $('list').innerHTML = listNodes.map(n=>`<div class="item ${selected===n.id?'active':''}" data-id="${esc(n.id)}"><div class="item-title">${esc(n.label)}</div><div class="item-meta">${esc(n.type)} ${n.scenario_ref?'· '+esc(n.scenario_ref):''}</div></div>`).join('');
+  document.querySelectorAll('.item').forEach(el=>el.onclick=()=>selectNode(el.dataset.id));
+}
+function typeRank(t){ return {Domain:1,DecisionPattern:2,Concept:3,AntiPattern:4,KnowledgeBase:5}[t]||9; }
+function related(id){ return edges.filter(e=>e.source===id||e.target===id); }
+function selectNode(id){ selected=id; renderList(); renderDetail(); renderGraph(); }
+function renderDetail(){
+  const n=byId[selected]; if(!n) return;
+  const rel=related(n.id);
+  const neighborHtml = rel.map(e=>{ const other=byId[e.source===n.id?e.target:e.source]; return `<span class="badge ${esc(other.type)}">${esc(e.relation)}: ${esc(other.label)}</span>` }).join(' ');
+  let html = `<h2 style="margin:0 0 6px">${esc(n.label)}</h2><div><span class="badge ${esc(n.type)}">${esc(n.type)}</span>${n.scenario_ref?`<span class="badge">${esc(n.scenario_ref)}</span>`:''}</div>`;
+  if(n.type==='DecisionPattern'){
+    html += block('if','IF / WHEN',n.if_when) + block('then','THEN',n.then);
+    if(n.never?.length) html += `<div class="block never"><h3>NEVER</h3><ul>${n.never.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+    if(n.why) html += block('why','WHY IT WORKS',n.why);
+  }
+  html += `<h3>Relationships</h3><div>${neighborHtml || '<span class="muted">No relationships</span>'}</div>`;
+  $('detail').innerHTML=html;
+}
+function block(cls,title,text){ return text ? `<div class="block ${cls}"><h3>${title}</h3>${esc(text)}</div>` : ''; }
+
+function renderGraph(){
+  const svg=$('graph'), w=svg.clientWidth||800, h=svg.clientHeight||600; svg.innerHTML='';
+  const showNodes = nodes.filter(n=>visibleIds.has(n.id));
+  const showSet = new Set(showNodes.map(n=>n.id));
+  const showEdges = edges.filter(e=>showSet.has(e.source)&&showSet.has(e.target));
+  if(!showNodes.length) return;
+  // Initial deterministic radial layout by type/domain order.
+  showNodes.forEach((n,i)=>{ if(n.x==null){ const a=i/showNodes.length*Math.PI*2; const r=80+typeRank(n.type)*45; n.x=w/2+Math.cos(a)*r; n.y=h/2+Math.sin(a)*r; }});
+  for(let tick=0; tick<90; tick++) stepLayout(showNodes,showEdges,w,h);
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g'); svg.appendChild(g);
+  showEdges.forEach(e=>{ const s=byId[e.source], t=byId[e.target]; const line=el('line',{class:`edge ${isActiveEdge(e)?'active':''} ${selected&&!isActiveEdge(e)?'dim':''}`,x1:s.x,y1:s.y,x2:t.x,y2:t.y}); g.appendChild(line); });
+  showNodes.forEach(n=>{
+    const isNeighbor = !selected || selected===n.id || related(selected).some(e=>e.source===n.id||e.target===n.id);
+    const gn=el('g',{class:`node ${selected===n.id?'active':''} ${isNeighbor?'':'dim'}`,transform:`translate(${n.x},${n.y})`});
+    if(!isNeighbor) gn.classList.add('dim');
+    gn.appendChild(el('circle',{r:radius(n),fill:color(n.type)}));
+    gn.appendChild(el('text',{x:radius(n)+4,y:3}, short(n.label,n.type==='DecisionPattern'?28:18)));
+    gn.onclick=()=>selectNode(n.id); drag(gn,n,()=>renderGraph()); g.appendChild(gn); });
+}
+function isActiveEdge(e){ return selected && (e.source===selected||e.target===selected); }
+function radius(n){ return {Domain:11,DecisionPattern:7,Concept:5,AntiPattern:5,KnowledgeBase:9}[n.type]||5; }
+function short(s,n){ return s.length>n?s.slice(0,n-1)+'…':s; }
+function el(name,attrs,text){ const x=document.createElementNS('http://www.w3.org/2000/svg',name); Object.entries(attrs||{}).forEach(([k,v])=>x.setAttribute(k,v)); if(text) x.textContent=text; return x; }
+function stepLayout(ns,es,w,h){
+  for(const n of ns){ n.vx=(n.vx||0)*.72; n.vy=(n.vy||0)*.72; }
+  for(let i=0;i<ns.length;i++) for(let j=i+1;j<ns.length;j++){ const a=ns[i],b=ns[j],dx=a.x-b.x,dy=a.y-b.y,d2=Math.max(80,dx*dx+dy*dy),f=1200/d2; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; }
+  for(const e of es){ const a=byId[e.source], b=byId[e.target], dx=b.x-a.x, dy=b.y-a.y, d=Math.max(1,Math.hypot(dx,dy)), target=e.relation==='CONTAINS_PATTERN'?90:70, f=(d-target)*.004; a.vx+=dx/d*f; a.vy+=dy/d*f; b.vx-=dx/d*f; b.vy-=dy/d*f; }
+  for(const n of ns){ n.vx+=(w/2-n.x)*.002; n.vy+=(h/2-n.y)*.002; n.x=Math.max(18,Math.min(w-18,n.x+n.vx)); n.y=Math.max(18,Math.min(h-18,n.y+n.vy)); }
+}
+function drag(elem,n,redraw){ let down=false; elem.addEventListener('pointerdown',e=>{down=true; elem.setPointerCapture(e.pointerId);}); elem.addEventListener('pointermove',e=>{ if(!down)return; const r=$('graph').getBoundingClientRect(); n.x=e.clientX-r.left; n.y=e.clientY-r.top; redraw(); }); elem.addEventListener('pointerup',()=>down=false); }
+function fit(){ nodes.forEach(n=>{ delete n.x; delete n.y; delete n.vx; delete n.vy; }); renderGraph(); }
+function setupEvents(){ ['search','domainFilter','typeFilter'].forEach(id=>$(id).addEventListener('input',applyFilters)); $('resetBtn').onclick=()=>{ $('search').value=''; $('domainFilter').value=''; $('typeFilter').value=''; selected=null; applyFilters(); $('detail').innerHTML='<p class="muted">Select a node to inspect its relationships and decision rule.</p>'; }; $('fitBtn').onclick=fit; $('themeBtn').onclick=()=>{ const dark=document.documentElement.dataset.theme!=='dark'; document.documentElement.dataset.theme=dark?'dark':'light'; $('themeBtn').textContent=dark?'Light':'Dark'; }; window.addEventListener('resize',()=>renderGraph()); }
+load();
+</script>
+</body>
+</html>
