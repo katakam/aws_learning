@@ -3,141 +3,50 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SAP-C02 Knowledge Graph Viewer</title>
+<title>SAP-C02 Decision Knowledge Map</title>
 <style>
-:root {
-  --bg:#f5f5f7; --panel:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:#d2d2d7;
-  --blue:#007aff; --green:#34c759; --orange:#ff9500; --red:#ff3b30; --purple:#af52de;
-  --shadow:0 8px 30px rgba(0,0,0,.08);
-}
-[data-theme="dark"] { --bg:#161617; --panel:#232325; --text:#f5f5f7; --muted:#a1a1a6; --line:#3a3a3c; --shadow:0 8px 30px rgba(0,0,0,.35); }
-*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
-header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
-.header-inner{display:flex;gap:12px;align-items:center;padding:12px 18px;max-width:1500px;margin:auto;flex-wrap:wrap}
-h1{font-size:17px;margin:0;letter-spacing:-.02em}.sub{color:var(--muted);font-size:12px}.spacer{flex:1}
-input,select,button{font:inherit;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);padding:8px 10px}button{cursor:pointer}button.primary{background:var(--blue);color:white;border-color:var(--blue)}
-.layout{display:grid;grid-template-columns:320px 1fr 390px;gap:14px;max-width:1500px;margin:14px auto;padding:0 14px;height:calc(100vh - 76px)}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;min-height:0}.panel-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}.panel-title{font-weight:700;font-size:14px}.panel-body{padding:12px;overflow:auto;height:calc(100% - 48px)}
-.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}.stat{background:var(--bg);border-radius:12px;padding:9px}.stat b{display:block;font-size:18px}.stat span{font-size:11px;color:var(--muted)}
-.item{padding:10px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:var(--panel)}.item:hover,.item.active{border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 15%,transparent)}.item-title{font-weight:650;font-size:13px}.item-meta{font-size:11px;color:var(--muted);margin-top:3px}
-#graph{width:100%;height:100%;display:block;background:radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--blue) 5%,transparent),transparent 58%)}
-.node{cursor:pointer}.node circle{stroke:var(--panel);stroke-width:2}.node text{font-size:10px;paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round;fill:var(--text);pointer-events:none}.edge{stroke:var(--line);stroke-opacity:.65}.edge.active{stroke:var(--blue);stroke-opacity:1;stroke-width:2.5}.node.active circle{stroke:var(--blue);stroke-width:4}.node.dim,.edge.dim{opacity:.16}
-.badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;margin:2px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}.badge.Domain{color:var(--orange)}.badge.DecisionPattern{color:var(--blue)}.badge.Concept{color:var(--green)}.badge.AntiPattern{color:var(--red)}
-.block{border-left:4px solid var(--blue);background:var(--bg);border-radius:10px;padding:10px;margin:10px 0}.block h3{font-size:11px;margin:0 0 5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.block.if{border-color:var(--orange)}.block.then{border-color:var(--green)}.block.never{border-color:var(--red)}.block.why{border-color:var(--blue)}
-ul{margin:6px 0 0 18px;padding:0}.muted{color:var(--muted)}.small{font-size:12px}.hidden{display:none!important}
-@media(max-width:1050px){.layout{grid-template-columns:1fr;height:auto}.panel{height:520px}.detail{height:auto}.graph-panel{order:-1}}
+:root{--bg:#f5f5f7;--card:#fff;--card2:#fbfbfd;--text:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--blue:#007aff;--green:#34c759;--orange:#ff9500;--red:#ff3b30;--purple:#af52de;--shadow:0 10px 30px rgba(0,0,0,.08);--r:18px}
+[data-theme=dark]{--bg:#161617;--card:#232325;--card2:#2c2c2e;--text:#f5f5f7;--muted:#a1a1a6;--line:#3a3a3c;--shadow:0 10px 30px rgba(0,0,0,.35)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.top{max-width:1500px;margin:auto;padding:12px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}.title h1{font-size:18px;margin:0;letter-spacing:-.03em}.title div{font-size:12px;color:var(--muted)}.search{position:relative}.search input{width:100%;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:14px;padding:11px 14px 11px 36px;outline:none}.search:before{content:"⌕";position:absolute;left:13px;top:8px;color:var(--muted);font-size:20px}.actions{display:flex;gap:8px}button,select{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:9px 11px;cursor:pointer}button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.app{max-width:1500px;margin:14px auto;padding:0 14px;display:grid;grid-template-columns:280px minmax(420px,1fr) 420px;gap:14px;height:calc(100vh - 82px)}.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;min-height:0}.head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}.head b{font-size:14px}.body{padding:12px;overflow:auto;height:calc(100% - 49px)}.muted{color:var(--muted)}.small{font-size:12px}.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--card2);border-radius:999px;padding:4px 8px;font-size:11px;color:var(--muted);margin:2px}.pill.concept{color:var(--green)}.pill.trap{color:var(--red)}.pill.domain{color:var(--orange)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}.stat{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:10px}.stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}.domain{padding:11px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer;background:var(--card2)}.domain:hover,.domain.active{border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 14%,transparent)}.domain-title{font-weight:700;font-size:13px;line-height:1.25}.domain-count{font-size:11px;color:var(--muted);margin-top:5px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap}.tab{padding:7px 10px;border-radius:999px;font-size:12px}.tab.active{background:var(--blue);border-color:var(--blue);color:white}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.toolbar select{padding:7px 9px;font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:10px}.pattern{border:1px solid var(--line);background:var(--card2);border-radius:16px;padding:12px;cursor:pointer;transition:.12s}.pattern:hover,.pattern.active{transform:translateY(-1px);border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 13%,transparent)}.pattern h3{margin:0 0 7px;font-size:15px;line-height:1.25;letter-spacing:-.02em}.snippet{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.chips{margin-top:8px;max-height:48px;overflow:hidden}.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.detail h2{font-size:22px;letter-spacing:-.04em;margin:0 0 8px}.block{border-left:4px solid var(--blue);background:var(--card2);border-radius:12px;padding:11px;margin:10px 0}.block h4{margin:0 0 5px;font-size:11px;letter-spacing:.07em;color:var(--muted)}.if{border-color:var(--orange)}.then{border-color:var(--green)}.never{border-color:var(--red)}.why{border-color:var(--blue)}ul{margin:6px 0 0 18px;padding:0}.split{display:grid;grid-template-columns:1fr 1fr;gap:8px}.index-list{display:flex;flex-wrap:wrap;gap:4px}.index-list .pill{cursor:pointer}.index-list .pill:hover{border-color:var(--blue)}
+.map{height:260px;border:1px solid var(--line);border-radius:16px;background:radial-gradient(circle at center,color-mix(in srgb,var(--blue) 7%,transparent),transparent 65%);margin-top:10px}svg{width:100%;height:100%}.edge{stroke:var(--line);stroke-width:1.3}.node text{font-size:10px;fill:var(--text);paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}.node circle{stroke:var(--card);stroke-width:2}.legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+@media(max-width:1150px){.app{grid-template-columns:1fr;height:auto}.panel{height:auto;max-height:none}.body{height:auto}.top{grid-template-columns:1fr}.actions{justify-content:flex-start}}@media(max-width:640px){.grid{grid-template-columns:1fr}.split{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header><div class="header-inner">
-  <div><h1>SAP-C02 Knowledge Graph</h1><div class="sub">Decision patterns → AWS concepts → exam traps</div></div>
-  <input id="search" placeholder="Search pattern, service, trap…" style="min-width:260px;flex:1" />
-  <select id="domainFilter"><option value="">All domains</option></select>
-  <select id="typeFilter"><option value="">All node types</option><option>Domain</option><option>DecisionPattern</option><option>Concept</option><option>AntiPattern</option></select>
-  <button id="resetBtn">Reset</button><button id="themeBtn">Dark</button>
-</div></header>
-<main class="layout">
-  <section class="panel"><div class="panel-head"><div class="panel-title">Explore</div><span id="resultCount" class="muted small"></span></div><div class="panel-body">
-    <div class="stats" id="stats"></div><div id="list"></div>
-  </div></section>
-  <section class="panel graph-panel"><div class="panel-head"><div class="panel-title">Graph</div><span class="muted small">Click nodes. Drag to reposition.</span><span class="spacer"></span><button class="primary" id="fitBtn">Fit</button></div><svg id="graph"></svg></section>
-  <section class="panel detail"><div class="panel-head"><div class="panel-title">Details</div></div><div class="panel-body" id="detail"><p class="muted">Select a node to inspect its relationships and decision rule.</p></div></section>
+<header><div class="top"><div class="title"><h1>SAP-C02 Decision Knowledge Map</h1><div>Designed for studying: choose a domain, scan patterns, inspect traps.</div></div><div class="search"><input id="q" placeholder="Search: DMS vs DataSync, SCP, Route 53 ARC, hot shard…" /></div><div class="actions"><button id="theme">Dark</button><button class="primary" id="reset">Reset</button></div></div></header>
+<main class="app">
+<section class="panel"><div class="head"><b>Domains</b><span class="small muted" id="summary"></span></div><div class="body"><div class="stats" id="stats"></div><div id="domains"></div></div></section>
+<section class="panel"><div class="head"><b>Decision Patterns</b><span class="small muted" id="count"></span><span style="flex:1"></span><div class="toolbar"><select id="sort"><option value="order">Exam order</option><option value="title">Title</option><option value="concepts">Most concepts</option><option value="traps">Most traps</option></select></div></div><div class="body"><div class="tabs"><button class="tab active" data-view="patterns">Patterns</button><button class="tab" data-view="concepts">Concept Index</button><button class="tab" data-view="traps">Trap Index</button></div><div style="height:10px"></div><div id="main"></div></div></section>
+<section class="panel detail"><div class="head"><b>Selected Rule</b><span class="small muted">IF → THEN → NEVER</span></div><div class="body" id="detail"><div class="empty">Select a pattern. The full decision rule and a focused relationship map will appear here.</div></div></section>
 </main>
 <script>
-const DATA_URL = 'data/sap_c02_knowledge_graph.json';
-let graph, nodes, edges, byId, selected=null, visibleIds=new Set(), sim;
-const $ = id => document.getElementById(id);
-const color = t => ({KnowledgeBase:'#8e8e93',Domain:'#ff9500',DecisionPattern:'#007aff',Concept:'#34c759',AntiPattern:'#ff3b30'}[t]||'#8e8e93');
-const esc = s => String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-
-async function load(){
-  try { graph = await fetch(DATA_URL).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }); }
-  catch(e){ $('detail').innerHTML = `<p><b>Could not load ${DATA_URL}</b></p><p class="muted">Run a local server from this folder:</p><pre>python3 -m http.server 8000</pre><p class="muted">Then open http://localhost:8000/sap_c02_kg_viewer.html</p>`; throw e; }
-  nodes = graph.nodes; edges = graph.edges; byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
-  populateFilters(); renderStats(); applyFilters(); setupEvents();
-}
-function populateFilters(){
-  nodes.filter(n=>n.type==='Domain').sort((a,b)=>(a.order||0)-(b.order||0)).forEach(d=>{ let o=document.createElement('option'); o.value=d.id; o.textContent=d.label; $('domainFilter').appendChild(o); });
-}
-function renderStats(){
-  const counts = nodes.reduce((a,n)=>(a[n.type]=(a[n.type]||0)+1,a),{});
-  $('stats').innerHTML = ['DecisionPattern','Concept','AntiPattern','Domain'].map(k=>`<div class="stat"><b>${counts[k]||0}</b><span>${k}</span></div>`).join('');
-}
-function domainPatterns(domainId){ return new Set(edges.filter(e=>e.source===domainId && e.relation==='CONTAINS_PATTERN').map(e=>e.target)); }
-function applyFilters(){
-  const q=$('search').value.toLowerCase().trim(), type=$('typeFilter').value, domain=$('domainFilter').value;
-  let domainSet = domain ? domainPatterns(domain) : null;
-  visibleIds = new Set(nodes.filter(n=>{
-    if(type && n.type!==type) return false;
-    const hay = [n.label,n.if_when,n.then,n.why,(n.never||[]).join(' ')].join(' ').toLowerCase();
-    if(q && !hay.includes(q)) return false;
-    if(domainSet){
-      if(n.id===domain) return true;
-      if(n.type==='DecisionPattern') return domainSet.has(n.id);
-      const linkedPatterns = edges.filter(e=>(e.target===n.id||e.source===n.id)).map(e=>e.source).filter(id=>domainSet.has(id));
-      return linkedPatterns.length>0;
-    }
-    return n.type !== 'KnowledgeBase';
-  }).map(n=>n.id));
-  renderList(); renderGraph();
-}
-function renderList(){
-  const listNodes = nodes.filter(n=>visibleIds.has(n.id)).sort((a,b)=> (typeRank(a.type)-typeRank(b.type)) || (a.order||9999)-(b.order||9999) || a.label.localeCompare(b.label));
-  $('resultCount').textContent = `${listNodes.length} nodes`;
-  $('list').innerHTML = listNodes.map(n=>`<div class="item ${selected===n.id?'active':''}" data-id="${esc(n.id)}"><div class="item-title">${esc(n.label)}</div><div class="item-meta">${esc(n.type)} ${n.scenario_ref?'· '+esc(n.scenario_ref):''}</div></div>`).join('');
-  document.querySelectorAll('.item').forEach(el=>el.onclick=()=>selectNode(el.dataset.id));
-}
-function typeRank(t){ return {Domain:1,DecisionPattern:2,Concept:3,AntiPattern:4,KnowledgeBase:5}[t]||9; }
-function related(id){ return edges.filter(e=>e.source===id||e.target===id); }
-function selectNode(id){ selected=id; renderList(); renderDetail(); renderGraph(); }
-function renderDetail(){
-  const n=byId[selected]; if(!n) return;
-  const rel=related(n.id);
-  const neighborHtml = rel.map(e=>{ const other=byId[e.source===n.id?e.target:e.source]; return `<span class="badge ${esc(other.type)}">${esc(e.relation)}: ${esc(other.label)}</span>` }).join(' ');
-  let html = `<h2 style="margin:0 0 6px">${esc(n.label)}</h2><div><span class="badge ${esc(n.type)}">${esc(n.type)}</span>${n.scenario_ref?`<span class="badge">${esc(n.scenario_ref)}</span>`:''}</div>`;
-  if(n.type==='DecisionPattern'){
-    html += block('if','IF / WHEN',n.if_when) + block('then','THEN',n.then);
-    if(n.never?.length) html += `<div class="block never"><h3>NEVER</h3><ul>${n.never.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
-    if(n.why) html += block('why','WHY IT WORKS',n.why);
-  }
-  html += `<h3>Relationships</h3><div>${neighborHtml || '<span class="muted">No relationships</span>'}</div>`;
-  $('detail').innerHTML=html;
-}
-function block(cls,title,text){ return text ? `<div class="block ${cls}"><h3>${title}</h3>${esc(text)}</div>` : ''; }
-
-function renderGraph(){
-  const svg=$('graph'), w=svg.clientWidth||800, h=svg.clientHeight||600; svg.innerHTML='';
-  const showNodes = nodes.filter(n=>visibleIds.has(n.id));
-  const showSet = new Set(showNodes.map(n=>n.id));
-  const showEdges = edges.filter(e=>showSet.has(e.source)&&showSet.has(e.target));
-  if(!showNodes.length) return;
-  // Initial deterministic radial layout by type/domain order.
-  showNodes.forEach((n,i)=>{ if(n.x==null){ const a=i/showNodes.length*Math.PI*2; const r=80+typeRank(n.type)*45; n.x=w/2+Math.cos(a)*r; n.y=h/2+Math.sin(a)*r; }});
-  for(let tick=0; tick<90; tick++) stepLayout(showNodes,showEdges,w,h);
-  const g=document.createElementNS('http://www.w3.org/2000/svg','g'); svg.appendChild(g);
-  showEdges.forEach(e=>{ const s=byId[e.source], t=byId[e.target]; const line=el('line',{class:`edge ${isActiveEdge(e)?'active':''} ${selected&&!isActiveEdge(e)?'dim':''}`,x1:s.x,y1:s.y,x2:t.x,y2:t.y}); g.appendChild(line); });
-  showNodes.forEach(n=>{
-    const isNeighbor = !selected || selected===n.id || related(selected).some(e=>e.source===n.id||e.target===n.id);
-    const gn=el('g',{class:`node ${selected===n.id?'active':''} ${isNeighbor?'':'dim'}`,transform:`translate(${n.x},${n.y})`});
-    if(!isNeighbor) gn.classList.add('dim');
-    gn.appendChild(el('circle',{r:radius(n),fill:color(n.type)}));
-    gn.appendChild(el('text',{x:radius(n)+4,y:3}, short(n.label,n.type==='DecisionPattern'?28:18)));
-    gn.onclick=()=>selectNode(n.id); drag(gn,n,()=>renderGraph()); g.appendChild(gn); });
-}
-function isActiveEdge(e){ return selected && (e.source===selected||e.target===selected); }
-function radius(n){ return {Domain:11,DecisionPattern:7,Concept:5,AntiPattern:5,KnowledgeBase:9}[n.type]||5; }
-function short(s,n){ return s.length>n?s.slice(0,n-1)+'…':s; }
-function el(name,attrs,text){ const x=document.createElementNS('http://www.w3.org/2000/svg',name); Object.entries(attrs||{}).forEach(([k,v])=>x.setAttribute(k,v)); if(text) x.textContent=text; return x; }
-function stepLayout(ns,es,w,h){
-  for(const n of ns){ n.vx=(n.vx||0)*.72; n.vy=(n.vy||0)*.72; }
-  for(let i=0;i<ns.length;i++) for(let j=i+1;j<ns.length;j++){ const a=ns[i],b=ns[j],dx=a.x-b.x,dy=a.y-b.y,d2=Math.max(80,dx*dx+dy*dy),f=1200/d2; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; }
-  for(const e of es){ const a=byId[e.source], b=byId[e.target], dx=b.x-a.x, dy=b.y-a.y, d=Math.max(1,Math.hypot(dx,dy)), target=e.relation==='CONTAINS_PATTERN'?90:70, f=(d-target)*.004; a.vx+=dx/d*f; a.vy+=dy/d*f; b.vx-=dx/d*f; b.vy-=dy/d*f; }
-  for(const n of ns){ n.vx+=(w/2-n.x)*.002; n.vy+=(h/2-n.y)*.002; n.x=Math.max(18,Math.min(w-18,n.x+n.vx)); n.y=Math.max(18,Math.min(h-18,n.y+n.vy)); }
-}
-function drag(elem,n,redraw){ let down=false; elem.addEventListener('pointerdown',e=>{down=true; elem.setPointerCapture(e.pointerId);}); elem.addEventListener('pointermove',e=>{ if(!down)return; const r=$('graph').getBoundingClientRect(); n.x=e.clientX-r.left; n.y=e.clientY-r.top; redraw(); }); elem.addEventListener('pointerup',()=>down=false); }
-function fit(){ nodes.forEach(n=>{ delete n.x; delete n.y; delete n.vx; delete n.vy; }); renderGraph(); }
-function setupEvents(){ ['search','domainFilter','typeFilter'].forEach(id=>$(id).addEventListener('input',applyFilters)); $('resetBtn').onclick=()=>{ $('search').value=''; $('domainFilter').value=''; $('typeFilter').value=''; selected=null; applyFilters(); $('detail').innerHTML='<p class="muted">Select a node to inspect its relationships and decision rule.</p>'; }; $('fitBtn').onclick=fit; $('themeBtn').onclick=()=>{ const dark=document.documentElement.dataset.theme!=='dark'; document.documentElement.dataset.theme=dark?'dark':'light'; $('themeBtn').textContent=dark?'Light':'Dark'; }; window.addEventListener('resize',()=>renderGraph()); }
-load();
+const DATA='data/sap_c02_knowledge_graph.json';let KG,N,E,byId,domains=[],selectedDomain='',selectedPattern='',view='patterns';
+const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const color=t=>({Domain:'#ff9500',DecisionPattern:'#007aff',Concept:'#34c759',AntiPattern:'#ff3b30'}[t]||'#8e8e93');
+async function init(){try{KG=await fetch(DATA).then(r=>{if(!r.ok)throw Error(r.status);return r.json()})}catch(e){$('detail').innerHTML=`<h2>Could not load JSON</h2><p class="muted">If opening locally, run <code>python3 -m http.server 8000</code>. On GitHub Pages this works automatically.</p>`;return}N=KG.nodes;E=KG.edges;byId=Object.fromEntries(N.map(n=>[n.id,n]));domains=N.filter(n=>n.type==='Domain').sort((a,b)=>(a.order||0)-(b.order||0));renderAll();bind()}
+function bind(){$('q').oninput=renderAll;$('sort').oninput=renderMain;$('reset').onclick=()=>{selectedDomain='';selectedPattern='';$('q').value='';view='patterns';document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAll();renderDetail()};$('theme').onclick=()=>{let d=document.documentElement.dataset.theme!=='dark';document.documentElement.dataset.theme=d?'dark':'light';$('theme').textContent=d?'Light':'Dark'};document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{view=b.dataset.view;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));renderMain()})}
+function patternsInDomain(id){return E.filter(e=>e.source===id&&e.relation==='CONTAINS_PATTERN').map(e=>byId[e.target])}
+function patternDomain(pid){let e=E.find(e=>e.target===pid&&e.relation==='CONTAINS_PATTERN');return e?byId[e.source]:null}
+function concepts(pid){return E.filter(e=>e.source===pid&&e.relation==='USES_CONCEPT').map(e=>byId[e.target])}
+function traps(pid){return E.filter(e=>e.source===pid&&e.relation==='AVOIDS').map(e=>byId[e.target])}
+function allPatterns(){return N.filter(n=>n.type==='DecisionPattern')}
+function filteredPatterns(){let q=$('q').value.toLowerCase().trim();let arr=selectedDomain?patternsInDomain(selectedDomain):allPatterns();if(q)arr=arr.filter(p=>[p.label,p.if_when,p.then,p.why,(p.never||[]).join(' '),concepts(p.id).map(c=>c.label).join(' ')].join(' ').toLowerCase().includes(q));let s=$('sort').value;arr=[...arr].sort((a,b)=>s==='title'?a.label.localeCompare(b.label):s==='concepts'?concepts(b.id).length-concepts(a.id).length:s==='traps'?traps(b.id).length-traps(a.id).length:(a.order||0)-(b.order||0));return arr}
+function renderAll(){renderStats();renderDomains();renderMain();if(selectedPattern)renderDetail()}
+function renderStats(){let c=t=>N.filter(n=>n.type===t).length;$('stats').innerHTML=`<div class="stat"><b>${c('DecisionPattern')}</b><span>Patterns</span></div><div class="stat"><b>${c('Concept')}</b><span>Concepts</span></div><div class="stat"><b>${c('AntiPattern')}</b><span>Traps</span></div><div class="stat"><b>${domains.length}</b><span>Domains</span></div>`;$('summary').textContent=`${filteredPatterns().length} shown`}
+function renderDomains(){$('domains').innerHTML=`<div class="domain ${!selectedDomain?'active':''}" data-id=""><div class="domain-title">All domains</div><div class="domain-count">${allPatterns().length} patterns</div></div>`+domains.map(d=>`<div class="domain ${selectedDomain===d.id?'active':''}" data-id="${esc(d.id)}"><div class="domain-title">${esc(d.label)}</div><div class="domain-count">${patternsInDomain(d.id).length} patterns</div></div>`).join('');document.querySelectorAll('.domain').forEach(x=>x.onclick=()=>{selectedDomain=x.dataset.id;renderAll()})}
+function renderMain(){let arr=filteredPatterns();$('count').textContent=`${arr.length} shown`;if(view==='concepts')return renderConceptIndex(arr);if(view==='traps')return renderTrapIndex(arr);$('main').innerHTML=arr.length?`<div class="grid">${arr.map(card).join('')}</div>`:`<div class="empty">No matching patterns.</div>`;document.querySelectorAll('.pattern').forEach(x=>x.onclick=()=>{selectedPattern=x.dataset.id;renderMain();renderDetail()})}
+function card(p){let cs=concepts(p.id).slice(0,5);let d=patternDomain(p.id);return `<article class="pattern ${selectedPattern===p.id?'active':''}" data-id="${esc(p.id)}"><h3>${esc(p.label)}</h3><div>${d?`<span class="pill domain">${esc(d.label.replace('Domain ', 'D'))}</span>`:''}${p.scenario_ref?`<span class="pill">${esc(p.scenario_ref)}</span>`:''}</div><p class="snippet">${esc(p.if_when||p.then)}</p><div class="chips">${cs.map(c=>`<span class="pill concept">${esc(c.label)}</span>`).join('')}${concepts(p.id).length>5?`<span class="pill">+${concepts(p.id).length-5}</span>`:''}</div></article>`}
+function renderConceptIndex(arr){let map=new Map();arr.forEach(p=>concepts(p.id).forEach(c=>{if(!map.has(c.id))map.set(c.id,{c,ps:[]});map.get(c.id).ps.push(p)}));let vals=[...map.values()].sort((a,b)=>b.ps.length-a.ps.length||a.c.label.localeCompare(b.c.label));$('main').innerHTML=`<div class="index-list">${vals.map(x=>`<span class="pill concept" data-patterns="${x.ps.map(p=>p.id).join(',')}">${esc(x.c.label)} · ${x.ps.length}</span>`).join('')}</div><div id="indexResults" style="margin-top:12px"></div>`;document.querySelectorAll('.index-list .pill').forEach(el=>el.onclick=()=>{$('indexResults').innerHTML='<div class="grid">'+el.dataset.patterns.split(',').map(id=>card(byId[id])).join('')+'</div>';document.querySelectorAll('#indexResults .pattern').forEach(x=>x.onclick=()=>{selectedPattern=x.dataset.id;renderDetail();renderMain()})})}
+function renderTrapIndex(arr){let rows=arr.flatMap(p=>traps(p.id).map(t=>({p,t}))).sort((a,b)=>a.t.label.localeCompare(b.t.label));$('main').innerHTML=rows.length?`<div class="grid">${rows.map(({p,t})=>`<article class="pattern" data-id="${esc(p.id)}"><h3 style="color:var(--red)">${esc(t.label)}</h3><p class="snippet"><b>Correct pattern:</b> ${esc(p.label)}</p></article>`).join('')}</div>`:`<div class="empty">No traps in this filter.</div>`;document.querySelectorAll('.pattern').forEach(x=>x.onclick=()=>{selectedPattern=x.dataset.id;renderDetail()})}
+function renderDetail(){let p=byId[selectedPattern];if(!p){$('detail').innerHTML='<div class="empty">Select a pattern. The full decision rule and focused map will appear here.</div>';return}let cs=concepts(p.id), ts=traps(p.id), d=patternDomain(p.id);$('detail').innerHTML=`<h2>${esc(p.label)}</h2><div>${d?`<span class="pill domain">${esc(d.label)}</span>`:''}${p.scenario_ref?`<span class="pill">${esc(p.scenario_ref)}</span>`:''}</div>${block('if','IF / WHEN',p.if_when)}${block('then','THEN',p.then)}${ts.length?`<div class="block never"><h4>NEVER / EXAM TRAPS</h4><ul>${ts.map(t=>`<li>${esc(t.label)}</li>`).join('')}</ul></div>`:''}${p.why?block('why','WHY IT WORKS',p.why):''}<h3>Concepts</h3><div>${cs.map(c=>`<span class="pill concept">${esc(c.label)}</span>`).join('')}</div><div class="legend"><span><i class="dot" style="background:${color('DecisionPattern')}"></i> Pattern</span><span><i class="dot" style="background:${color('Concept')}"></i> Concept</span><span><i class="dot" style="background:${color('AntiPattern')}"></i> Trap</span></div><div class="map"><svg id="map"></svg></div>`;drawMap(p,cs,ts)}
+function block(cls,title,text){return text?`<div class="block ${cls}"><h4>${title}</h4>${esc(text)}</div>`:''}
+function drawMap(p,cs,ts){let svg=$('map'),w=svg.clientWidth||380,h=svg.clientHeight||260,cx=w/2,cy=h/2;svg.innerHTML='';let items=[...cs.map(x=>({n:x,t:'Concept'})),...ts.slice(0,10).map(x=>({n:x,t:'AntiPattern'}))];items.forEach((it,i)=>{let a=i/items.length*Math.PI*2-Math.PI/2,r=95,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;line(cx,cy,x,y);node(x,y,it.t,it.n.label,it.t==='Concept'?6:5)});node(cx,cy,'DecisionPattern',p.label,10);function line(x1,y1,x2,y2){let e=document.createElementNS('http://www.w3.org/2000/svg','line');e.setAttribute('class','edge');e.setAttribute('x1',x1);e.setAttribute('y1',y1);e.setAttribute('x2',x2);e.setAttribute('y2',y2);svg.appendChild(e)}function node(x,y,t,label,r){let g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('class','node');g.setAttribute('transform',`translate(${x},${y})`);let c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('r',r);c.setAttribute('fill',color(t));g.appendChild(c);let tx=document.createElementNS('http://www.w3.org/2000/svg','text');tx.setAttribute('x',r+4);tx.setAttribute('y',3);tx.textContent=label.length>24?label.slice(0,23)+'…':label;g.appendChild(tx);svg.appendChild(g)}}
+init();
 </script>
 </body>
 </html>
