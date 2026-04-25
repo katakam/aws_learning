@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAP-C02 Decision Patterns</title>
+<style>
+/* ─────────────────────────────────────────
+   APPLE HIG TOKENS
+   ───────────────────────────────────────── */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --mono: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+
+  --bg:           #f2f2f7;
+  --surface:      #ffffff;
+  --surface2:     #f2f2f7;
+  --surface3:     #e5e5ea;
+
+  --label:        rgba(0,0,0,0.88);
+  --label2:       rgba(60,60,67,0.6);
+  --label3:       rgba(60,60,67,0.3);
+
+  --sep:          rgba(60,60,67,0.18);
+  --sep-strong:   rgba(60,60,67,0.29);
+
+  --blue:         #007AFF;
+  --green:        #34C759;
+  --orange:       #FF9500;
+  --red:          #FF3B30;
+  --indigo:       #5856D6;
+  --teal:         #32ADE6;
+  --yellow:       #c8960c;
+
+  /* Semantic block colors — muted fills */
+  --if-bg:        rgba(255,149,0,0.08);
+  --if-bar:       #FF9500;
+  --then-bg:      rgba(52,199,89,0.08);
+  --then-bar:     #34C759;
+  --not-bg:       rgba(255,59,48,0.07);
+  --not-bar:      #FF3B30;
+  --why-bg:       rgba(0,122,255,0.07);
+  --why-bar:      #007AFF;
+
+  --radius-sm:    6px;
+  --radius-md:    10px;
+  --radius-lg:    14px;
+  --radius-xl:    20px;
+}
+
+[data-theme="dark"] {
+  --bg:           #1c1c1e;
+  --surface:      #2c2c2e;
+  --surface2:     #3a3a3c;
+  --surface3:     #48484a;
+
+  --label:        rgba(255,255,255,0.9);
+  --label2:       rgba(235,235,245,0.6);
+  --label3:       rgba(235,235,245,0.25);
+
+  --sep:          rgba(84,84,88,0.4);
+  --sep-strong:   rgba(84,84,88,0.65);
+
+  --blue:         #0A84FF;
+  --green:        #30D158;
+  --orange:       #FF9F0A;
+  --red:          #FF453A;
+  --indigo:       #5E5CE6;
+  --teal:         #5AC8FA;
+  --yellow:       #FFD60A;
+
+  --if-bg:        rgba(255,159,10,0.10);
+  --if-bar:       #FF9F0A;
+  --then-bg:      rgba(48,209,88,0.10);
+  --then-bar:     #30D158;
+  --not-bg:       rgba(255,69,58,0.10);
+  --not-bar:      #FF453A;
+  --why-bg:       rgba(10,132,255,0.10);
+  --why-bar:      #0A84FF;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--label);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ─────────────────────────────────────────
+   STICKY HEADER
+   ───────────────────────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(242,242,247,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--sep);
+  padding: 0 24px;
+  transition: background 0.2s;
+}
+[data-theme="dark"] .site-header {
+  background: rgba(28,28,30,0.85);
+}
+.header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  flex-wrap: wrap;
+}
+.header-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--label);
+  white-space: nowrap;
+}
+.header-sub {
+  font-size: 12px;
+  color: var(--label2);
+  white-space: nowrap;
+}
+.search-wrap {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--label3);
+  font-size: 13px;
+  pointer-events: none;
+}
+#search {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--sep-strong);
+  border-radius: var(--radius-md);
+  padding: 7px 10px 7px 30px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--label);
+  outline: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+#search:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,0.15); }
+#search::placeholder { color: var(--label3); }
+.theme-btn {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px solid var(--sep-strong);
+  border-radius: 100px;
+  background: var(--surface);
+  color: var(--label2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+}
+.theme-btn:hover { color: var(--label); border-color: var(--blue); }
+
+/* ─────────────────────────────────────────
+   PAGE HERO
+   ───────────────────────────────────────── */
+.page-hero {
+  background: var(--blue);
+  padding: 28px 24px 24px;
+  text-align: center;
+}
+.page-hero h1 {
+  font-family: var(--font);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #fff;
+  line-height: 1.25;
+}
+.page-hero p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+  margin-top: 5px;
+  letter-spacing: -0.1px;
+}
+
+/* ─────────────────────────────────────────
+   WRAPPER
+   ───────────────────────────────────────── */
+.wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px 20px 60px;
+}
+
+/* ─────────────────────────────────────────
+   TOC
+   ───────────────────────────────────────── */
+.toc {
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-xl);
+  padding: 18px 22px;
+  margin-bottom: 24px;
+}
+.toc-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--label2);
+  margin-bottom: 10px;
+}
+.toc-links { display: flex; flex-direction: column; gap: 2px; }
+.toc-links a {
+  color: var(--blue);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  margin: 0 -8px;
+  letter-spacing: -0.1px;
+  transition: background 0.1s;
+}
+.toc-links a:hover { background: var(--sep); color: var(--blue); text-decoration: none; }
+
+/* ─────────────────────────────────────────
+   DOMAIN HEADER
+   ───────────────────────────────────────── */
+.domain-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 28px 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label2);
+}
+.domain-header::before, .domain-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--sep);
+}
+.domain-header:first-of-type { margin-top: 0; }
+.domain-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.d1 { background: rgba(0,122,255,0.1); color: var(--blue); }
+.d2 { background: rgba(52,199,89,0.1); color: var(--green); }
+.d3 { background: rgba(255,149,0,0.1); color: var(--orange); }
+.d4 { background: rgba(88,86,214,0.1); color: var(--indigo); }
+.d5 { background: rgba(50,173,230,0.1); color: var(--teal); }
+.dx { background: rgba(255,59,48,0.1); color: var(--red); }
+
+/* ─────────────────────────────────────────
+   PATTERN CARD
+   ───────────────────────────────────────── */
+.pattern-card {
+  background: var(--surface);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-lg);
+  margin-bottom: 6px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.pattern-card[open] { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+.pattern-card summary {
+  padding: 13px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--label);
+  background: var(--surface);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.2px;
+  user-select: none;
+  transition: background 0.1s;
+  border-radius: var(--radius-lg);
+}
+.pattern-card[open] summary { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.pattern-card summary::-webkit-details-marker { display: none; }
+.pattern-card summary:hover { background: var(--surface2); }
+.chevron {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--label2);
+  font-size: 9px;
+  transition: transform 0.2s, background 0.15s;
+}
+.pattern-card[open] summary .chevron { transform: rotate(90deg); background: var(--blue); color: #fff; }
+.summary-text { flex: 1; }
+.counter {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--label3);
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+
+/* ─────────────────────────────────────────
+   PATTERN BODY
+   ───────────────────────────────────────── */
+.pattern-body {
+  padding: 14px 16px 18px;
+  border-top: 1px solid var(--sep);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Semantic blocks */
+.if-block, .then-block, .not-block, .why-block {
+  border-radius: var(--radius-md);
+  padding: 10px 13px;
+  border-left: 3px solid;
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: -0.1px;
+}
+.if-block   { background: var(--if-bg);   border-color: var(--if-bar);   }
+.then-block { background: var(--then-bg); border-color: var(--then-bar); }
+.not-block  { background: var(--not-bg);  border-color: var(--not-bar);  }
+.why-block  { background: var(--why-bg);  border-color: var(--why-bar);  }
+
+.block-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.if-block   .block-label { color: var(--if-bar); }
+.then-block .block-label { color: var(--then-bar); }
+.not-block  .block-label { color: var(--not-bar); }
+.why-block  .block-label { color: var(--why-bar); }
+
+/* ─────────────────────────────────────────
+   TAGS
+   ───────────────────────────────────────── */
+.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(0,122,255,0.1);
+  color: var(--blue);
+}
+.tag-warn { background: rgba(255,59,48,0.1); color: var(--red); }
+.tag-tip  { background: rgba(52,199,89,0.1); color: var(--green); }
+
+/* ─────────────────────────────────────────
+   TABLES
+   ───────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--sep);
+}
+thead tr { background: var(--surface2); }
+th {
+  text-align: left;
+  padding: 8px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--label2);
+  border-bottom: 1px solid var(--sep);
+}
+td {
+  padding: 7px 11px;
+  border-bottom: 1px solid var(--sep);
+  vertical-align: top;
+  color: var(--label);
+  line-height: 1.5;
+}
+tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: rgba(120,120,128,0.03); }
+tbody tr:hover td { background: rgba(0,122,255,0.04); }
+
+/* ─────────────────────────────────────────
+   CODE
+   ───────────────────────────────────────── */
+code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--surface2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--label);
+  border: 1px solid var(--sep);
+}
+strong { font-weight: 600; }
+em { color: var(--label2); }
+
+/* ─────────────────────────────────────────
+   NO-RESULTS
+   ───────────────────────────────────────── */
+#no-results {
+  display: none;
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--label2);
+  font-size: 14px;
+}
+#no-results.show { display: block; }
+
+/* ─────────────────────────────────────────
+   SCROLL-TO-TOP
+   ───────────────────────────────────────── */
+#scroll-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 50;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 2px 10px rgba(0,122,255,0.3);
+  pointer-events: none;
+}
+#scroll-top.show { opacity: 1; pointer-events: all; }
+#scroll-top:hover { transform: scale(1.1); }
+
+@media (max-width: 600px) {
+  .page-hero h1 { font-size: 18px; }
+  .header-sub { display: none; }
+  .wrapper { padding: 16px 14px 60px; }
+}
+</style>
+</head>
+<body>
+
+<!-- STICKY HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <div>
+      <div class="header-title">SAP-C02</div>
+      <div class="header-sub">100+ Decision Patterns</div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="search" type="search" placeholder="Search… SCP, Spot, DMS, Transit Gateway, PITR…" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()">◐ Dark</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="page-hero">
+  <h1>IF / WHEN / THEN / NOT Decision Patterns</h1>
+  <p>Complete Exam Cheat Sheet · 100+ Patterns · All SAP-C02 Topics · SAP-C02</p>
+</div>
+
+<div class="wrapper">
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title">Jump to Domain</div>
+  <div class="toc-links">
+    <a href="#d1">Domain 1 — Design Solutions for Organizational Complexity (26%)</a>
+    <a href="#d2">Domain 2 — Design for New Solutions (29%)</a>
+    <a href="#d3">Domain 3 — Migration Planning (20%)</a>
+    <a href="#d4">Domain 4 — Cost Control (25%)</a>
+    <a href="#d5">Domain 5 — Continuous Improvement for Existing Solutions</a>
+    <a href="#d1">Domain 1 — Organizational Complexity (26%)</a><a href="#d2">Domain 2 — New Solutions (29%)</a><a href="#d3">Domain 3 — Migration Planning (20%)</a><a href="#d4">Domain 4 — Cost Control (25%)</a><a href="#d5">Domain 5 — Continuous Improvement</a><a href="#dx">Universal Traps, Numbers &amp; Patterns</a>
+  </div>
+</div>
+<!-- ═══════════════════════════════ DOMAIN 1 ═══════════════════════════════ -->
+<div class="domain-header" id="d1"><span class="domain-badge d1">Domain 1 — Design Solutions for Organizational Complexity</span></div>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">SCP Deny-List + Acquired Account Carve-Out</span><span class="counter">Scenarios 1 · 6</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Root SCP blocks a resource type AND a new/acquired account needs temporary access to that blocked resource</div>
+<div class="then-block"><div class="block-label">THEN</div>Create a <strong>temporary OU</strong> (e.g. <code>Onboarding</code>). Attach an <strong>Allow SCP</strong> for the carve-out to that OU. Move the account into it. After freeze period, move to Production OU — root SCP re-applies automatically.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• IAM permission boundaries — <em>cannot override SCPs</em><br>• Adding a second Deny SCP to child OU — deny lists stack, they do not cancel<br>• Condition keys on root SCP (e.g. <code>aws:PrincipalAccount</code>) — per-account carve-outs must use OU structure</div>
+<div class="why-block"><div class="block-label">WHY IT WORKS</div>Effective permissions = intersection of ALL SCPs in the OU hierarchy. A child-OU Allow SCP carves out the exception while the root SCP remains unchanged. Authorization order: Organization SCPs → Resource-based policies → IAM policies → Permission boundaries → Session policies.</div>
+<div class="tags"><span class="tag">SCPs</span><span class="tag">Organizations</span><span class="tag">OU</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">SCP Evaluation Logic — Full Authorization Chain</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Question asks whether an action will be allowed or denied given a combination of SCPs, IAM policies, and resource policies</div>
+<div class="then-block"><div class="block-label">THEN — EVALUATION ORDER</div>
+<table><thead><tr><th>Step</th><th>Check</th><th>Result if Deny</th></tr></thead><tbody>
+<tr><td>1</td><td><strong>Explicit Deny anywhere</strong> (SCP, IAM, resource policy)</td><td>DENY — final</td></tr>
+<tr><td>2</td><td><strong>Organization SCP</strong> — does it allow the action?</td><td>DENY if not allowed</td></tr>
+<tr><td>3</td><td><strong>Resource-based policy</strong> (if cross-account) — explicit Allow?</td><td>DENY if absent</td></tr>
+<tr><td>4</td><td><strong>IAM identity policy</strong> — explicit Allow?</td><td>DENY if absent</td></tr>
+<tr><td>5</td><td><strong>Permission boundary</strong> (if exists) — within boundary?</td><td>DENY if outside</td></tr>
+<tr><td>6</td><td><strong>Session policy</strong> (if AssumeRole) — within session scope?</td><td>DENY if outside</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">CRITICAL TRAPS</div>• Management account is <strong>exempt from SCPs</strong> — SCPs never apply to the management account<br>• SCPs do not grant permissions — they only restrict what IAM policies CAN grant<br>• <code>NotAction</code> in SCP = allow everything except listed actions (deny-list pattern)<br>• <code>Action</code> in SCP with Allow = allow-list pattern — everything else is implicitly denied</div>
+<div class="tags"><span class="tag">SCPs</span><span class="tag">IAM</span><span class="tag">Authorization</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Merging Two AWS Organizations Post-Acquisition</span><span class="counter">Scenario 46</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Merging two AWS Organizations after acquisition — move accounts, apply SCPs, preserve IAM resources, activate consolidated billing, unify SSO</div>
+<div class="then-block"><div class="block-label">THEN</div>Remove member accounts from acquired Org → management account sends <strong>Organization invitations</strong> → accounts accept → SCPs apply immediately on join → consolidated billing activates automatically → onboard employees to existing IAM Identity Center (Okta) by provisioning in IdP.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• "AWS Support can merge Organizations" — <em>this capability does not exist</em><br>• Creating new accounts and migrating resources — violates no-re-provisioning requirement<br>• Cross-org consolidated billing — not a supported feature, billing only works within one Org</div>
+<div class="why-block"><div class="block-label">WHY IT WORKS</div>Joining an Organization does not touch intra-account IAM resources. Consolidated billing and SCP enforcement activate the moment an account joins.</div>
+<div class="tags"><span class="tag">Organizations</span><span class="tag">M&amp;A</span><span class="tag">IAM Identity Center</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Human Access to Production — No Persistent Credentials + External Auditor</span><span class="counter">Scenario 6</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Developers must use MFA, never persistent IAM credentials in Production; external auditor needs temporary read-only cross-account access for N days</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>IAM Identity Center</strong> (SAML + IdP, MFA enforced at IdP) — vends temporary session credentials per session. For external auditor: <strong>cross-account IAM role</strong> with trust policy to auditor's AWS account ID, <code>ReadOnlyAccess</code>, tag-based lifecycle automation (EventBridge + Lambda) to auto-delete after N days.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• IAM users for external auditors — SCP blocks <code>iam:CreateUser</code> anyway<br>• <code>organizations:*</code> on management account for external party — catastrophic blast radius<br>• Per-account SAML federation bypassing Identity Center — N accounts × manual role management</div>
+<div class="tags"><span class="tag">IAM Identity Center</span><span class="tag">Cross-account role</span><span class="tag">MFA</span><span class="tag">SAML</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Centralized Network — TGW + GWLB + Route 53 Resolver + DX Gateway</span><span class="counter">Scenario 56 · 41</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>80+ account VPCs need centralized egress, centralized firewall inspection, shared on-prem DNS, shared Direct Connect, auto-enrollment for new accounts</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Need</th><th>Solution</th></tr></thead><tbody>
+<tr><td>Centralized egress</td><td>TGW <code>spoke-rt</code> default route → Egress VPC (NAT GW)</td></tr>
+<tr><td>Firewall inspection</td><td>TGW two route tables + <strong>Gateway Load Balancer</strong> + <strong>Appliance Mode</strong> on Inspection VPC attachment</td></tr>
+<tr><td>Hybrid DNS</td><td>Route 53 Resolver Inbound/Outbound Endpoints in central VPC → Rules shared via <strong>AWS RAM</strong></td></tr>
+<tr><td>Shared Direct Connect</td><td><strong>Direct Connect Gateway</strong> attached to TGW (one DX shared across all VPCs)</td></tr>
+<tr><td>Auto-enrollment</td><td>TGW shared via <strong>RAM to Org</strong> + <code>auto-accept enabled</code></td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• VPC Peering for hub-and-spoke — non-transitive, n×(n-1)/2 connections at scale<br>• Per-account Direct Connect VIFs — expensive, unscalable<br>• Omit Appliance Mode — causes asymmetric routing, stateful firewall breaks across AZs</div>
+<div class="tags"><span class="tag">Transit Gateway</span><span class="tag">GWLB</span><span class="tag">Route 53 Resolver</span><span class="tag">RAM</span><span class="tag">DX Gateway</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Organization-Wide Security Controls — Auto-Enrollment Within 5 Minutes</span><span class="counter">Scenarios 11 · 61</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>All accounts need GuardDuty, Security Hub, CloudTrail — new accounts auto-inherit within minutes, members cannot opt out, tamper-proof audit logs 7 years</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Requirement</th><th>Service</th></tr></thead><tbody>
+<tr><td>All-account CloudTrail + auto-enroll</td><td><strong>CloudTrail Organization Trail</strong> (single trail, all current + future accounts)</td></tr>
+<tr><td>Immutable logs</td><td>S3 + <strong>Object Lock COMPLIANCE mode</strong> (even root cannot delete within retention)</td></tr>
+<tr><td>SQL queries on CloudTrail</td><td><strong>CloudTrail Lake</strong> (no Athena/Glue setup required)</td></tr>
+<tr><td>GuardDuty auto-enroll</td><td>GuardDuty <strong>delegated admin</strong> + <code>AutoEnable: ALL</code></td></tr>
+<tr><td>Security Hub aggregate</td><td>Security Hub <strong>delegated admin</strong> + auto-enable</td></tr>
+<tr><td>Prevent opt-out</td><td>SCP: Deny <code>guardduty:DeleteDetector</code>, <code>cloudtrail:StopLogging</code>, <code>organizations:LeaveOrganization</code></td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Lambda + EventBridge for new account auto-enrollment — custom code, 15-min CloudTrail delivery delay<br>• Config Aggregator for GuardDuty findings — Config tracks resource config, not threat findings<br>• CloudFormation StackSets — 5-15 min deployment delay per account batch</div>
+<div class="tags"><span class="tag">CloudTrail Org Trail</span><span class="tag">S3 Object Lock</span><span class="tag">GuardDuty</span><span class="tag">Security Hub</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Config Conformance Packs — Continuous Compliance + Auto-Remediation at Scale</span><span class="counter">Scenarios 66 · 71</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Enforce compliance rules (S3 versioning, approved AMIs, VPC Flow Logs, encryption) across all accounts, auto-remediate within minutes, unified dashboard</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>AWS Config Organization Conformance Pack</strong> (deploys Config rules + SSM Automation remediation to all accounts from one template). <strong>Change-triggered evaluation</strong> fires within 2 minutes of resource creation. <strong>Security Hub</strong> aggregates compliance scores. Approved AMIs shared via <strong>EC2 Image Builder + AWS RAM</strong>.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• CloudTrail-triggered Lambda — up to 15-minute delivery delay for management events<br>• Control Tower for existing account remediation — designed for new account vending, not retroactive<br>• Hourly Lambda scans — cannot meet 2-minute detection requirement</div>
+<div class="tags"><span class="tag">Config Conformance Pack</span><span class="tag">SSM Automation</span><span class="tag">Security Hub</span><span class="tag">EC2 Image Builder</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">AWS Control Tower — Landing Zone, Guardrails, Account Factory</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to set up a new multi-account AWS environment with governance baseline, or vend new accounts with pre-configured controls automatically</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Control Tower Component</th><th>What it Does</th></tr></thead><tbody>
+<tr><td><strong>Landing Zone</strong></td><td>Pre-built multi-account structure (Management, Log Archive, Audit accounts)</td></tr>
+<tr><td><strong>Account Factory</strong></td><td>Self-service account vending with pre-applied baselines (Config, CloudTrail, SSO)</td></tr>
+<tr><td><strong>Preventive guardrails</strong></td><td>SCPs that prevent policy violations (e.g. disabling CloudTrail)</td></tr>
+<tr><td><strong>Detective guardrails</strong></td><td>Config rules that detect non-compliance (e.g. S3 public access enabled)</td></tr>
+<tr><td><strong>Proactive guardrails</strong></td><td>CloudFormation hooks that block non-compliant resources before creation</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Control Tower for retroactive compliance in existing accounts — it manages accounts it vends; existing accounts need enrollment and may drift<br>• Control Tower for 5-minute new account enrollment SLA — Account Factory takes longer; use delegated admin auto-enable for security services</div>
+<div class="tags"><span class="tag">Control Tower</span><span class="tag">Account Factory</span><span class="tag">Guardrails</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">AWS RAM — Resource Sharing Across Accounts and Organizations</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to share AWS resources across accounts without duplicating them — subnets, TGW, Route 53 Resolver rules, License Manager, EC2 Image Builder AMIs</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>AWS Resource Access Manager (RAM)</strong> — share resources to specific accounts, OUs, or the entire Organization. Key shareable resources:
+<table><thead><tr><th>Resource</th><th>Use Case</th></tr></thead><tbody>
+<tr><td>VPC Subnets</td><td>Shared VPC — central networking team owns subnets, spoke accounts deploy into them</td></tr>
+<tr><td>Transit Gateway</td><td>Shared TGW across all accounts — spoke VPCs attach from their own accounts</td></tr>
+<tr><td>Route 53 Resolver Rules</td><td>Central DNS rules shared to all spoke accounts</td></tr>
+<tr><td>EC2 Image Builder AMIs</td><td>Hardened golden AMIs available to all accounts</td></tr>
+<tr><td>License Manager</td><td>Shared software license pools across accounts</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Recreating resources in each account (e.g. one TGW per account) — defeats the purpose of shared services<br>• RAM sharing to individual accounts when the entire Org needs it — share at Organization level</div>
+<div class="tags"><span class="tag">AWS RAM</span><span class="tag">Shared VPC</span><span class="tag">Transit Gateway</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">S3 Data Classification + Access Control — Macie + SCPs + Object Lock</span><span class="counter">Scenario 51</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Auto-classify S3 objects (PII, PHI, CONFIDENTIAL) on upload, restrict access by classification, enforce via SCP (account admins cannot override), immutable audit logs, scan existing objects</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>Amazon Macie</strong> (delegated admin from Security account) auto-detects PII/PHI → EventBridge rule → Lambda applies S3 Object Tags (<code>classification=PII</code>). <strong>SCP with <code>s3:ExistingObjectTag</code> condition</strong>: Deny <code>s3:GetObject</code> where tag=PII unless principal matches approved role ARN. <strong>S3 Object Lock COMPLIANCE</strong> on audit bucket (even root cannot delete). <strong>Macie scheduled discovery jobs</strong> for existing objects.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Amazon Rekognition for PII detection — Rekognition classifies images/video only<br>• Bucket policies alone — account admins can override, SCP is required for org-level enforcement<br>• S3 Object Lock GOVERNANCE mode for immutability — GOVERNANCE can be overridden by users with <code>s3:BypassGovernanceRetention</code>. COMPLIANCE mode = truly immutable</div>
+<div class="tags"><span class="tag">Amazon Macie</span><span class="tag">S3 Object Lock</span><span class="tag">SCPs</span><span class="tag">EventBridge</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Multi-Account Cost Allocation — CUR, Cost Categories, Budgets, Savings Plans Sharing</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need per-BU showback, shared cost allocation, SQL-queryable line-item cost data, automated budget alerts to different contacts, RI/SP sharing</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Requirement</th><th>Service</th></tr></thead><tbody>
+<tr><td>Line-item SQL cost queries</td><td><strong>CUR → S3 → Glue → Athena</strong></td></tr>
+<tr><td>Shared service cost allocation</td><td><strong>Cost Categories</strong> split charge rules</td></tr>
+<tr><td>Per-BU showback</td><td>Cost Allocation Tags + Cost Explorer</td></tr>
+<tr><td>Per-BU budget alerts to different contacts</td><td>AWS Budgets → SNS → Lambda → DynamoDB lookup → SES</td></tr>
+<tr><td>RI/SP sharing across accounts</td><td>Consolidated billing — <strong>automatic</strong>, no config needed</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>QuickSight with Cost Explorer as data source — Cost Explorer is pre-aggregated, not line-item granularity. CUR → Athena gives full line-item detail.</div>
+<div class="tags"><span class="tag">CUR</span><span class="tag">Athena</span><span class="tag">Cost Categories</span><span class="tag">AWS Budgets</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Hybrid DNS — On-Premises ↔ AWS Name Resolution</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>EC2 instances in VPC need to resolve on-premises hostnames (e.g. <code>server.corp.internal</code>), OR on-premises servers need to resolve AWS private hosted zone names</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Direction</th><th>Solution</th></tr></thead><tbody>
+<tr><td>VPC → On-premises (forward queries for <code>corp.internal</code>)</td><td>Route 53 Resolver <strong>Outbound Endpoint</strong> + <strong>Forwarding Rule</strong> → on-prem DNS IP</td></tr>
+<tr><td>On-premises → VPC (resolve <code>*.aws.corp</code> private hosted zone)</td><td>Route 53 Resolver <strong>Inbound Endpoint</strong> — on-prem DNS forwards to Inbound Endpoint IP</td></tr>
+<tr><td>Share rules across all accounts</td><td>Share Resolver Rules via <strong>AWS RAM</strong> to Organization</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Deploy DNS servers on EC2 in each account — operational overhead, not scalable<br>• Confuse Inbound vs Outbound: <strong>Inbound</strong> = traffic comes IN from on-prem to AWS. <strong>Outbound</strong> = queries go OUT from AWS to on-prem.</div>
+<div class="tags"><span class="tag">Route 53 Resolver</span><span class="tag">Inbound Endpoint</span><span class="tag">Outbound Endpoint</span><span class="tag">AWS RAM</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Direct Connect — Architecture, Redundancy, and Failover Patterns</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need dedicated, private, consistent-bandwidth connectivity from on-premises to AWS — or questions about DX redundancy and failover to VPN</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Pattern</th><th>Components</th></tr></thead><tbody>
+<tr><td>Single VPC connectivity</td><td>DX Connection → Private VIF → Virtual Private Gateway (VGW)</td></tr>
+<tr><td>Multiple VPCs via one DX</td><td>DX Connection → <strong>Direct Connect Gateway</strong> → Transit Gateway or multiple VGWs</td></tr>
+<tr><td>High availability (SLA 99.99%)</td><td>Two DX connections from two different DX locations → two VIFs</td></tr>
+<tr><td>DX + VPN failover</td><td>BGP metrics: DX = lower MED (preferred). VPN = higher MED (backup). Automatic failover.</td></tr>
+<tr><td>Routing control</td><td>BGP community tags control route propagation. AS_PATH prepending for traffic engineering.</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Public VIF for private VPC resources — Public VIF is for AWS public endpoints (S3, DynamoDB APIs)<br>• Single DX connection for mission-critical — single DX = single point of failure. Always two connections for HA.</div>
+<div class="tags"><span class="tag">Direct Connect</span><span class="tag">DX Gateway</span><span class="tag">BGP</span><span class="tag">Private VIF</span></div>
+</div>
+</details>
+
+<!-- ═══════════════════════════════ DOMAIN 2 ═══════════════════════════════ -->
+<div class="domain-header" id="d2"><span class="domain-badge d2">Domain 2 — Design for New Solutions</span></div>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Streaming Architecture Decision — Kinesis vs MSK vs EventBridge vs SQS</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to choose between Kinesis, MSK, EventBridge, and SQS for event/message processing</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Service</th><th>Use When</th><th>Key Limit</th></tr></thead><tbody>
+<tr><td><strong>Kinesis Data Streams</strong></td><td>High-throughput ordered streaming, replay, fan-out, Flink/Lambda consumers</td><td>1MB/s or 1K records/s per shard</td></tr>
+<tr><td><strong>Amazon MSK (Kafka)</strong></td><td>Existing Kafka workloads, Kafka Streams, MirrorMaker, exactly-once with Transactions API</td><td>No managed cross-region replication</td></tr>
+<tr><td><strong>EventBridge</strong></td><td>Event routing between AWS services, SaaS integrations, low-volume event-driven triggers</td><td>~10K events/sec default per bus</td></tr>
+<tr><td><strong>SQS Standard</strong></td><td>Decoupling, at-least-once, high-throughput queue, dead-letter, long polling</td><td>Unlimited throughput, no ordering</td></tr>
+<tr><td><strong>SQS FIFO</strong></td><td>Exactly-once, strict ordering within message group</td><td>3K msg/sec with batching</td></tr>
+<tr><td><strong>SNS</strong></td><td>Fan-out to multiple subscribers (SQS, Lambda, HTTP, email)</td><td>No replay, fire-and-forget</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">CRITICAL RULE</div>High throughput (>10K/sec) → <strong>Kinesis or MSK</strong>. Routing/orchestration → <strong>EventBridge</strong>. Decoupling workers → <strong>SQS</strong>. Fan-out → <strong>SNS → SQS</strong>.</div>
+<div class="tags"><span class="tag">Kinesis</span><span class="tag">MSK</span><span class="tag">EventBridge</span><span class="tag">SQS</span><span class="tag">SNS</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">High-Throughput Streaming + Exactly-Once + Sub-200ms Latency</span><span class="counter">Scenario 2</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>500K+ events/sec ingestion, exactly-once processing, enrichment updatable without downtime, results available &lt;200ms, multi-tenant isolation</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>Kinesis Data Streams</strong> (partition by high-cardinality key) → <strong>Amazon Managed Apache Flink</strong> (exactly-once via S3 checkpointing; blue/green JAR swap = zero-downtime update) → <strong>DynamoDB on-demand</strong> (single-digit ms reads) → API Gateway + Lambda authorizer</div>
+<div class="not-block"><div class="block-label">NEVER</div>• One Kinesis stream per tenant — thousands of streams, unmanageable at scale<br>• EventBridge for 500K/sec — default ~10K/sec limit<br>• Athena for &lt;200ms reads — batch query engine<br>• MSK if team explicitly rejected Kafka — honor the constraint</div>
+<div class="why-block"><div class="block-label">KEY FACT</div>Flink exactly-once = checkpoint to S3. Flink blue/green = application snapshot → new JAR → restore from snapshot. No data loss, no duplication.</div>
+<div class="tags"><span class="tag">Kinesis</span><span class="tag">Managed Flink</span><span class="tag">Exactly-once</span><span class="tag">DynamoDB</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Global Leaderboard — Sub-10ms Reads, 500K Writes/sec, RPO=0</span><span class="counter">Scenario 12</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Global leaderboard: sub-10ms reads, 500K writes/sec, RPO=0, RTO&lt;30s, no pre-provisioning, 90-day audit</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>DynamoDB Global Tables on-demand</strong> (durable score writes, active-active, RPO=0, LWW conflict resolution) → <strong>ElastiCache Redis Global Datastore</strong> sorted sets <code>ZADD/ZRANGE</code> (sub-1ms leaderboard reads per region) → DynamoDB Streams → EventBridge Pipes → Kinesis Firehose → S3 (90-day audit)</div>
+<div class="not-block"><div class="block-label">NEVER</div>• DynamoDB GSI for leaderboard ranking — GSIs are not globally sorted across all partitions<br>• Redis Global Datastore alone — async replication ≠ RPO=0, no durable backup on cluster restart<br>• Aurora Global Database for 500K writes/sec — single writer bottleneck</div>
+<div class="tags"><span class="tag">DynamoDB Global Tables</span><span class="tag">ElastiCache Redis</span><span class="tag">ZADD/ZRANGE</span><span class="tag">Firehose</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">HIPAA IoT at Scale — RPO=0, 500ms Alert, 7-Year Retention, BAA Required</span><span class="counter">Scenario 7</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>HIPAA IoT ingestion at millions of devices, anomaly alert &lt;500ms, RPO=0 on region failure, 7-year retention, CMK encryption, all services need BAA</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>IoT Core</strong> → <strong>Kinesis Data Streams in TWO regions simultaneously</strong> (dual-write producers = RPO=0) → <strong>Managed Flink</strong> (500ms tumbling window) → <strong>DynamoDB Global Tables KMS CMK</strong> → <strong>S3 + Glacier Deep Archive lifecycle</strong> (7-year) → <strong>Route 53 ARC</strong> (RTO &lt;1min)</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Single-region Kinesis — RPO≠0<br>• ElastiCache Redis — <strong>NOT HIPAA BAA eligible</strong><br>• Aurora Global DB — replication lag ~1s ≠ RPO=0<br>• EventBridge for 2M device throughput — ~10K/sec limit</div>
+<div class="why-block"><div class="block-label">KEY FACT</div>RPO=0 requires <strong>dual-region producers</strong>. Any replication-after-the-fact approach always has lag → RPO &gt; 0.</div>
+<div class="tags"><span class="tag">IoT Core</span><span class="tag">Kinesis</span><span class="tag">Flink</span><span class="tag">Route 53 ARC</span><span class="tag">HIPAA</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">SageMaker Endpoint Types — Real-Time vs Serverless vs Async vs Batch</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to choose the right SageMaker inference endpoint type based on latency, cost, and traffic pattern</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Endpoint Type</th><th>Latency</th><th>Use When</th><th>Cost Model</th></tr></thead><tbody>
+<tr><td><strong>Real-Time</strong></td><td>Milliseconds</td><td>Fraud detection, recommendations, &lt;1s SLA</td><td>Per instance-hour (always on)</td></tr>
+<tr><td><strong>Serverless</strong></td><td>Seconds (cold start)</td><td>&lt;10 req/day, cost-sensitive, spiky traffic</td><td>Per invocation + compute time</td></tr>
+<tr><td><strong>Asynchronous</strong></td><td>Minutes</td><td>Large payloads (&gt;6MB), long processing, queued batch</td><td>Per instance-hour (while processing)</td></tr>
+<tr><td><strong>Batch Transform</strong></td><td>Hours</td><td>Offline bulk inference on S3 datasets</td><td>Per instance-hour (job duration)</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">CRITICAL TRAP</div>Async Inference ≠ real-time. If the question says &lt;100ms or &lt;200ms scoring SLA → <strong>Real-Time endpoint</strong>. Async is for large payloads where response can wait minutes.</div>
+<div class="tags"><span class="tag">SageMaker</span><span class="tag">Real-Time Inference</span><span class="tag">Serverless Inference</span><span class="tag">Async Inference</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Active-Active Global API — 100K RPS, Instant Region Removal (No DNS TTL)</span><span class="counter">Scenario 52</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Multi-region active-active API, 100K RPS, remove region from rotation instantly (no DNS TTL delay), sub-50ms session access globally</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>AWS Global Accelerator</strong> (anycast IPs, AWS backbone routing, endpoint weight=0 = instant removal) → regional ALB + ECS Fargate → <strong>DynamoDB Global Tables on-demand</strong> → <strong>ElastiCache Global Datastore</strong> (sub-ms regional session reads)</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Route 53 latency-based routing for instant removal — DNS TTL minimum 60s<br>• CloudFront + Lambda@Edge for dynamic API logic — Lambda@Edge max 30s, no VPC access<br>• S3 for session state — 10-50ms read latency</div>
+<div class="why-block"><div class="block-label">KEY DIFFERENTIATOR</div><strong>Global Accelerator weight=0 = instant</strong>. Route 53 record change = DNS TTL propagation. Use GA when instant regional removal or health-check based routing over AWS backbone is required.</div>
+<div class="tags"><span class="tag">Global Accelerator</span><span class="tag">DynamoDB Global Tables</span><span class="tag">ElastiCache Global Datastore</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Step Functions Standard vs Express — The Critical Trap</span><span class="counter">Scenario 67 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to orchestrate a multi-step workflow with retries, parallel branches, compensating transactions, or business analyst visibility</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Attribute</th><th>Standard Workflow</th><th>Express Workflow</th></tr></thead><tbody>
+<tr><td>Max duration</td><td><strong>1 year</strong></td><td><strong>5 minutes</strong></td></tr>
+<tr><td>Execution semantics</td><td>Exactly-once</td><td>At-least-once</td></tr>
+<tr><td>Execution history</td><td>Full history in console</td><td>CloudWatch Logs only</td></tr>
+<tr><td>Pricing</td><td>Per state transition</td><td>Per execution duration + count</td></tr>
+<tr><td>Use case</td><td>Order processing, human approval, DR workflows, anything &gt;5min</td><td>High-volume, short IoT/streaming pipelines</td></tr>
+</tbody></table>
+Use <strong>Parallel state</strong> for concurrent branches. <strong>Catch + Compensation states</strong> for Saga pattern. <strong>WaitForTaskToken</strong> for human approval or async callbacks.
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>Express for workflows lasting longer than 5 minutes — this is the #1 Step Functions trap on the exam. If duration can exceed 5 min → Standard, always.</div>
+<div class="tags"><span class="tag">Step Functions Standard</span><span class="tag">Step Functions Express</span><span class="tag">Saga Pattern</span><span class="tag">Parallel State</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Database Selection — Right Service for the Right Workload</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to select the right AWS database for a given access pattern, data model, and SLA</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Database</th><th>Use When</th></tr></thead><tbody>
+<tr><td><strong>Aurora MySQL/PostgreSQL</strong></td><td>Relational OLTP, ACID, complex joins, stored procedures, lift-and-shift from MySQL/Oracle/SQL Server</td></tr>
+<tr><td><strong>Aurora Global Database</strong></td><td>Multi-region active-read, RPO &lt;1s, RTO &lt;1min with managed failover</td></tr>
+<tr><td><strong>Aurora Serverless v2</strong></td><td>Variable/unpredictable workload, pay-per-ACU, scales in &lt;1s, no idle cost at 0.5 ACU min</td></tr>
+<tr><td><strong>DynamoDB</strong></td><td>Single-table design, key-value/document, &lt;10ms at any scale, 500K+ writes/sec, no joins</td></tr>
+<tr><td><strong>DynamoDB Global Tables</strong></td><td>Active-active multi-region, RPO=0, LWW conflict resolution, &lt;1s replication</td></tr>
+<tr><td><strong>ElastiCache Redis</strong></td><td>Sub-ms reads, session state, leaderboards (sorted sets), pub/sub, caching layer in front of RDS/DynamoDB</td></tr>
+<tr><td><strong>Amazon Timestream</strong></td><td>Time-series data (IoT sensor data, metrics, log data with timestamps)</td></tr>
+<tr><td><strong>Amazon QLDB</strong></td><td>Immutable, cryptographically verifiable ledger (financial audit, supply chain tracking)</td></tr>
+<tr><td><strong>Amazon OpenSearch</strong></td><td>Full-text search, log analytics, complex aggregations across large datasets</td></tr>
+<tr><td><strong>Amazon Redshift</strong></td><td>Analytical OLAP queries on structured data, multi-TB to PB datasets, columnar storage</td></tr>
+</tbody></table>
+</div>
+<div class="tags"><span class="tag">Aurora</span><span class="tag">DynamoDB</span><span class="tag">ElastiCache</span><span class="tag">Timestream</span><span class="tag">QLDB</span><span class="tag">Redshift</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Serverless Compute Selection — Lambda vs Fargate vs App Runner</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to choose between Lambda, ECS Fargate, or App Runner for a serverless or containerized workload</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Service</th><th>Use When</th><th>Key Limits</th></tr></thead><tbody>
+<tr><td><strong>Lambda</strong></td><td>Event-driven, stateless, &lt;15min execution, scale-to-zero, pay-per-invocation</td><td>15min timeout, 10GB memory, 10GB /tmp, no GPU</td></tr>
+<tr><td><strong>ECS Fargate</strong></td><td>Containerized, &gt;15min tasks, custom runtimes, GPU inference, persistent connections</td><td>4 vCPU / 30GB per task (standard), scale-to-zero possible</td></tr>
+<tr><td><strong>App Runner</strong></td><td>HTTP/HTTPS web apps and APIs from container or source code, no infrastructure management</td><td>Automatic scaling, built-in load balancing, no VPC required</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>Lambda for: GPU inference (no GPU support), &gt;15min processing, persistent TCP connections, large binary processing &gt;10GB. Use Fargate instead.</div>
+<div class="tags"><span class="tag">Lambda</span><span class="tag">ECS Fargate</span><span class="tag">App Runner</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Multi-Tenant SaaS — Physical Data Isolation + 60-Second Tenant Onboarding</span><span class="counter">Scenario 72</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>SaaS with 100K tenants, physical isolation (bug-proof), per-tenant retention, cross-tenant analytics for platform owner only, 60-second automated onboarding</div>
+<div class="then-block"><div class="block-label">THEN</div>Per-tenant <strong>S3 bucket + unique KMS CMK</strong> (physical crypto isolation). Per-tenant <strong>DynamoDB table</strong> (table-level IAM policy). <strong>Step Functions + Lambda onboarding</strong> (~15-30s to provision all resources). Per-bucket S3 Lifecycle for tenant-specific retention. <strong>Glue Data Catalog + Athena</strong> for cross-tenant analytics (platform owner role only).</div>
+<div class="not-block"><div class="block-label">NEVER</div>• One account per tenant — account creation takes 5-15min, violates 60s SLA<br>• Shared DynamoDB table with tenant_id — application-layer filter only, bug = data leak<br>• Shared S3 bucket with prefix — same KMS key = not physical isolation</div>
+<div class="why-block"><div class="block-label">ISOLATION SPECTRUM</div>Strongest → weakest: Separate AWS account → Separate resource + separate KMS key → Separate prefix → Row-level filter (application only)</div>
+<div class="tags"><span class="tag">S3 per-tenant</span><span class="tag">KMS CMK</span><span class="tag">DynamoDB per-tenant</span><span class="tag">Step Functions</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Live Video Streaming — Ultra-Low Latency, ABR, DVR, Viral Spikes</span><span class="counter">Scenario 57</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Live sports streaming: &lt;5s latency, ABR, 30-min DVR, 100K+ concurrent viewers, handles 10× viral spikes in 30 seconds, global audience</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>AWS Elemental MediaLive</strong> (managed live encoder, multiple bitrate renditions, input redundancy) → <strong>AWS Elemental MediaPackage</strong> (ABR packaging HLS/DASH/CMAF, Low-Latency HLS = 3-5s glass-to-glass, native DVR window up to 72h) → <strong>CloudFront + Origin Shield</strong> (edge cache absorbs spikes)</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Kinesis Video Streams for live viewer delivery — designed for ML/analytics ingest, not HLS/DASH output<br>• EC2 Auto Scaling as streaming servers — 60-90s launch time cannot handle 30s spikes<br>• Lambda for real-time transcoding — no multi-bitrate encoding capability</div>
+<div class="why-block"><div class="block-label">KEY FACT</div>Spike → CloudFront cache hit rate increases → origin load does NOT scale proportionally. CloudFront is the auto-scaler for CDN traffic.</div>
+<div class="tags"><span class="tag">MediaLive</span><span class="tag">MediaPackage</span><span class="tag">CloudFront</span><span class="tag">LL-HLS</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">CloudFront — Edge Caching, OAC, Lambda@Edge, Functions, Security</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to reduce origin load, accelerate static/dynamic content globally, enforce security at edge, or customize request/response</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Feature</th><th>Use When</th></tr></thead><tbody>
+<tr><td><strong>Origin Access Control (OAC)</strong></td><td>Restrict S3 access to CloudFront only (replaces legacy OAI). Eliminates direct S3 URL access.</td></tr>
+<tr><td><strong>Lambda@Edge</strong></td><td>Complex request manipulation, A/B testing, JWT validation at edge. Max 30s (viewer) / 5s (origin).</td></tr>
+<tr><td><strong>CloudFront Functions</strong></td><td>Lightweight URL rewrites, header manipulation, &lt;1ms execution. Cheaper than Lambda@Edge.</td></tr>
+<tr><td><strong>Origin Shield</strong></td><td>Additional caching layer between edge PoPs and origin. Reduces origin load by 60-80% during spikes.</td></tr>
+<tr><td><strong>WAF integration</strong></td><td>AWS WAF on CloudFront distribution = global DDoS + application-layer protection at edge</td></tr>
+<tr><td><strong>Price Class</strong></td><td>100 = NA + Europe only (cheapest). 200 = + Asia/ME/Africa. All = all PoPs (most expensive).</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>Lambda@Edge for complex dynamic API logic requiring VPC connectivity — Lambda@Edge cannot be in a VPC. Use regional Lambda + API Gateway instead.</div>
+<div class="tags"><span class="tag">CloudFront</span><span class="tag">OAC</span><span class="tag">Lambda@Edge</span><span class="tag">Origin Shield</span><span class="tag">WAF</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">API Gateway — REST vs HTTP vs WebSocket Selection</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to expose APIs to clients — choose between REST, HTTP, or WebSocket API</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Type</th><th>Cost</th><th>Use When</th><th>Missing vs REST</th></tr></thead><tbody>
+<tr><td><strong>REST API</strong></td><td>$3.50/M calls</td><td>API keys, usage plans, request validation, caching, edge-optimized, WAF</td><td>—</td></tr>
+<tr><td><strong>HTTP API</strong></td><td>$1.00/M calls (71% cheaper)</td><td>Lambda/HTTP proxy, JWT authorizers, CORS, custom domains</td><td>No API keys, no caching, no request transformation, no WAF direct integration</td></tr>
+<tr><td><strong>WebSocket API</strong></td><td>$1.00/M messages</td><td>Real-time bidirectional (chat, live updates, collaborative apps)</td><td>—</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>HTTP API when you need: API keys + usage plans, response caching, request/response mapping templates, WAF integration, or edge-optimized endpoint. These features require REST API.</div>
+<div class="tags"><span class="tag">API Gateway</span><span class="tag">REST API</span><span class="tag">HTTP API</span><span class="tag">WebSocket</span></div>
+</div>
+</details>
+
+<!-- ═══════════════════════════════ DOMAIN 3 ═══════════════════════════════ -->
+<div class="domain-header" id="d3"><span class="domain-badge d3">Domain 3 — Migration Planning</span></div>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Migration Tool Selection — MGN vs DMS vs DataSync vs Snowball vs SCT</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to select the right migration tool based on workload type, data volume, and available bandwidth</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Tool</th><th>Use For</th><th>Key Capability</th></tr></thead><tbody>
+<tr><td><strong>AWS MGN</strong></td><td>VM/physical server lift-and-shift to EC2</td><td>Continuous block-level replication, sub-hour cutover</td></tr>
+<tr><td><strong>AWS DMS + CDC</strong></td><td>Database migration with minimal downtime</td><td>Ongoing replication until cutover, heterogeneous engines</td></tr>
+<tr><td><strong>AWS SCT</strong></td><td>Schema + stored procedure conversion (Oracle → PG, SQL Server → Aurora)</td><td>Assessment report + auto-conversion + action items</td></tr>
+<tr><td><strong>AWS DataSync</strong></td><td>NFS/SMB/HDFS/S3 → S3/EFS/FSx, large file transfers</td><td>Bandwidth throttle schedules, end-to-end checksum, parallel threads</td></tr>
+<tr><td><strong>Snowball Edge</strong></td><td>Bulk data transfer when bandwidth is insufficient for timeline</td><td>100TB usable/device, offline, KMS encryption</td></tr>
+<tr><td><strong>AWS Backup</strong></td><td>Centralized backup policy across EC2, RDS, DynamoDB, EFS, S3</td><td>Backup plans, PITR, cross-account/region backup</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• AWS SMS — <strong>deprecated</strong>. Always use MGN.<br>• DMS for SAP HANA — DMS does not support HANA as source/target<br>• Snowball when network bandwidth makes transfer feasible in time — DataSync is faster and supports live CDC<br>• Transfer Family (SFTP) for bulk NAS migration — designed for file transfer workflows, not bulk migration</div>
+<div class="tags"><span class="tag">MGN</span><span class="tag">DMS</span><span class="tag">SCT</span><span class="tag">DataSync</span><span class="tag">Snowball</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Bandwidth Rule — When to Use Snowball vs DataSync</span><span class="counter">Scenarios 3 · 43 · 53</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to transfer large datasets to AWS — determining whether network transfer or physical shipment is faster</div>
+<div class="then-block"><div class="block-label">THEN — QUICK MATH</div>
+<table><thead><tr><th>Available Bandwidth</th><th>Data Size</th><th>Transfer Time</th><th>Decision</th></tr></thead><tbody>
+<tr><td>1 Gbps</td><td>10TB</td><td>~22 hours</td><td>DataSync over network</td></tr>
+<tr><td>1 Gbps</td><td>200TB</td><td>~18 days</td><td>DataSync if timeline allows, else Snowball</td></tr>
+<tr><td>200 Mbps</td><td>10PB</td><td>~4.6 YEARS</td><td><strong>Snowball Edge</strong> (100 devices)</td></tr>
+<tr><td>500 Mbps</td><td>8TB NFS</td><td>~35 hours</td><td>DataSync over internet</td></tr>
+</tbody></table>
+Formula: Transfer time (hours) = Data size (bytes) / (Bandwidth (bits/s) / 8) / 3600. Compare to timeline. If DataSync takes longer than timeline → Snowball + DataSync for delta.
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>Snowball when DataSync is faster — Snowball adds 7-10 days shipping round-trip. DataSync + network is always preferred when bandwidth makes it feasible.</div>
+<div class="tags"><span class="tag">Snowball</span><span class="tag">DataSync</span><span class="tag">Bandwidth Calculation</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">VMware Lift-and-Shift — MGN + DataSync (NFS→EFS) + DMS CDC</span><span class="counter">Scenario 8</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>40 VMware VMs, shared NFS mount, Oracle database, &lt;2hr downtime, 4hr rollback SLA, centrally tracked</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>AWS MGN</strong> (continuous block-level replication, delta lag = seconds by cutover day) + <strong>DataSync NFS → Amazon EFS</strong> (drop-in NFS replacement, parallel transfer, checksum) + <strong>DMS Full Load + CDC</strong> for Oracle (zero data loss) → cutover: stop writes, CDC lag &lt;60s, flip DNS → <strong>Migration Hub</strong> for tracking → Rollback: MGN agents on-prem, repoint DNS</div>
+<div class="not-block"><div class="block-label">NEVER</div>• S3 File Gateway for shared NFS — caching latency unsuitable for concurrent NFS writes<br>• DMS Full Load only — 3TB at 500Mbps = 13+ hours, violates 2hr window<br>• Snowball for 8TB NFS — 7-10 day shipping, no live delta sync</div>
+<div class="why-block"><div class="block-label">EFS vs FSx vs Storage Gateway</div><strong>EFS</strong> = drop-in NFS replacement (Linux). <strong>FSx for Windows</strong> = SMB + AD integrated (Windows). <strong>Storage Gateway File GW</strong> = NFS/SMB interface to S3, caching, lower concurrency performance.</div>
+<div class="tags"><span class="tag">MGN</span><span class="tag">DataSync</span><span class="tag">EFS</span><span class="tag">DMS CDC</span><span class="tag">Migration Hub</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Oracle → Aurora PostgreSQL Migration — SCT + DMS + Lambda for PL/SQL</span><span class="counter">Scenario 3</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Migrating Oracle (large, PL/SQL packages) to Aurora PostgreSQL, &lt;1hr downtime, eliminate Oracle licensing, 1Gbps DX available</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>AWS SCT</strong> (assess + auto-convert DDL/PL/SQL; generates complexity report) → <strong>DMS Full Load + CDC</strong> over Direct Connect → For unconvertible PL/SQL: replace with <strong>Lambda functions</strong> called via <code>aws_lambda</code> Aurora extension → Cutover when CDC lag &lt;60 seconds</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Snowball when 1Gbps DX available — DX is faster, Snowball adds 2-3 week shipping<br>• DMS Full Load only (no CDC) — requires full maintenance window (hours)<br>• RDS for Oracle as target — retains Oracle licensing (violates cost requirement)<br>• "Manually refactor all PL/SQL" — missing the Lambda accelerator pattern for unconverted code</div>
+<div class="tags"><span class="tag">DMS</span><span class="tag">SCT</span><span class="tag">Aurora PostgreSQL</span><span class="tag">CDC</span><span class="tag">Lambda</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Windows .NET App — No Code Changes, AD Auth, SMB, MSMQ, SQL Server</span><span class="counter">Scenario 58</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Migrating .NET Framework app: Windows Authentication, SMB file share, MSMQ, SQL Server — NO code changes allowed</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Requirement</th><th>AWS Service</th></tr></thead><tbody>
+<tr><td>Windows app, no code changes</td><td>EC2 Windows (lift-and-shift via MGN)</td></tr>
+<tr><td>Active Directory / Windows Auth</td><td><strong>AWS Managed Microsoft AD</strong></td></tr>
+<tr><td>SMB file share</td><td><strong>Amazon FSx for Windows File Server</strong> (native SMB, AD-integrated)</td></tr>
+<tr><td>MSMQ (no code changes)</td><td><strong>MSMQ on EC2</strong> (co-located with app — migrating to SQS requires code changes)</td></tr>
+<tr><td>SQL Server</td><td><strong>RDS for SQL Server</strong> (same engine) via DMS CDC</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• MSMQ → SQS without code changes — impossible. MSMQ uses COM API; SQS uses SDK/HTTP.<br>• EFS for SMB — EFS is NFS only. Windows needs FSx for Windows.<br>• Aurora for SQL Server target — changes engine, violates SQL Server constraint</div>
+<div class="tags"><span class="tag">FSx Windows</span><span class="tag">Managed AD</span><span class="tag">MSMQ on EC2</span><span class="tag">RDS SQL Server</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Migration Discovery Toolchain — ADS Agent, Migration Evaluator, Migration Hub</span><span class="counter">Scenario 13</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Migrating 500 applications: need to classify by 6Rs, auto-discover dependencies, track centrally, throttle file transfers, stakeholder visibility</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Need</th><th>Tool</th><th>Why</th></tr></thead><tbody>
+<tr><td>Process-level dependency mapping</td><td><strong>ADS Discovery Agent</strong></td><td>Captures actual network connections between processes. Agentless Connector = VMware-only, VM-level only.</td></tr>
+<tr><td>Portfolio assessment + business case</td><td><strong>Migration Evaluator</strong></td><td>Automated right-sizing, TCO analysis, wave recommendations</td></tr>
+<tr><td>6R classification + central tracking</td><td><strong>AWS Migration Hub</strong></td><td>Single pane across all migration tools and accounts</td></tr>
+<tr><td>Throttled file transfer with integrity</td><td><strong>DataSync</strong> with <code>--bandwidth-limit</code></td><td>Scheduled throttle, automatic checksum, parallel</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• ADS Discovery Connector for process-level dependencies — VMware-only, VM metadata only<br>• SSM Inventory for network dependency mapping — discovers installed software, not connections<br>• Transfer Family for bulk NAS migration — SFTP protocol, not bulk data movement</div>
+<div class="tags"><span class="tag">ADS Agent</span><span class="tag">Migration Evaluator</span><span class="tag">Migration Hub</span><span class="tag">DataSync</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Database Migration Target Mapping — Oracle, MySQL, SQL Server, MongoDB, PostgreSQL</span><span class="counter">Scenario 68 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to select the optimal AWS target database for each source engine</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Source Engine</th><th>Optimal AWS Target</th><th>Tool</th></tr></thead><tbody>
+<tr><td>Oracle (OLTP)</td><td><strong>Aurora PostgreSQL</strong></td><td>SCT + DMS CDC</td></tr>
+<tr><td>MySQL</td><td><strong>Aurora MySQL</strong></td><td>DMS CDC (homogeneous, no SCT needed)</td></tr>
+<tr><td>SQL Server (preserve T-SQL/Agent Jobs)</td><td><strong>RDS for SQL Server</strong></td><td>DMS CDC</td></tr>
+<tr><td>MongoDB (time-series data)</td><td><strong>Amazon Timestream</strong></td><td>DMS (MongoDB supported as source)</td></tr>
+<tr><td>MongoDB (document)</td><td>Amazon DocumentDB</td><td>DMS</td></tr>
+<tr><td>PostgreSQL</td><td><strong>Aurora PostgreSQL</strong></td><td>DMS CDC (homogeneous)</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• MySQL → DynamoDB — complete re-architecture (relational → NoSQL)<br>• MongoDB time-series → DocumentDB — DocumentDB not optimized for time-series; use Timestream<br>• All databases → DynamoDB — requires full application redesign<br>• DMS for SAP HANA — not supported</div>
+<div class="tags"><span class="tag">SCT</span><span class="tag">DMS</span><span class="tag">Aurora</span><span class="tag">Timestream</span><span class="tag">DocumentDB</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Storage Gateway — File Gateway vs Volume Gateway vs Tape Gateway</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>On-premises applications need to access AWS storage (S3, EBS snapshots, Glacier) without changing their protocols</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Gateway Type</th><th>Protocol</th><th>Backend</th><th>Use When</th></tr></thead><tbody>
+<tr><td><strong>File Gateway</strong></td><td>NFS / SMB</td><td>Amazon S3</td><td>Hybrid NFS/SMB access to S3. Files stored as S3 objects. Cache for frequently accessed files.</td></tr>
+<tr><td><strong>Volume Gateway (Cached)</strong></td><td>iSCSI</td><td>S3 + local cache</td><td>Block storage with primary data in S3, frequently accessed data cached locally</td></tr>
+<tr><td><strong>Volume Gateway (Stored)</strong></td><td>iSCSI</td><td>Local + S3 snapshots</td><td>All data stored locally, asynchronous snapshots to S3 for backup</td></tr>
+<tr><td><strong>Tape Gateway</strong></td><td>iSCSI VTL</td><td>S3 + Glacier</td><td>Replace physical tape infrastructure with virtual tapes archived to Glacier</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>File Gateway for high-concurrency, high-performance NFS workloads — caching latency and throughput limits make it unsuitable. For production NFS → use Amazon EFS. For production SMB → use FSx for Windows.</div>
+<div class="tags"><span class="tag">Storage Gateway</span><span class="tag">File Gateway</span><span class="tag">Volume Gateway</span><span class="tag">Tape Gateway</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Hybrid Architecture — Storage Gateway vs DataSync vs Direct Storage</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to determine whether to use Storage Gateway, DataSync, or direct S3 APIs for on-premises to cloud data movement</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Scenario</th><th>Use</th></tr></thead><tbody>
+<tr><td>Legacy app needs to <em>continue</em> using NFS/SMB to access S3 data</td><td><strong>Storage Gateway File Gateway</strong></td></tr>
+<tr><td>One-time or scheduled bulk transfer NFS/SMB → S3/EFS</td><td><strong>AWS DataSync</strong></td></tr>
+<tr><td>App can use AWS SDK/CLI to write directly to S3</td><td><strong>S3 Multipart Upload</strong> or direct SDK</td></tr>
+<tr><td>NAS/SAN → EBS-compatible block storage on AWS</td><td><strong>Volume Gateway</strong> or MGN</td></tr>
+</tbody></table>
+</div>
+<div class="tags"><span class="tag">Storage Gateway</span><span class="tag">DataSync</span><span class="tag">S3</span></div>
+</div>
+</details>
+
+<!-- ═══════════════════════════════ DOMAIN 4 ═══════════════════════════════ -->
+<div class="domain-header" id="d4"><span class="domain-badge d4">Domain 4 — Cost Control</span></div>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Purchase Option Decision — Spot vs RI vs Savings Plans vs On-Demand</span><span class="counter">Scenarios 4 · 9 · 49 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to select the most cost-effective EC2/Fargate/RDS purchase option based on workload pattern</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Workload Pattern</th><th>Best Option</th><th>Savings</th></tr></thead><tbody>
+<tr><td>Stateless, interruptible, batch (ML training, transcoding, ETL)</td><td><strong>EC2 Spot / Managed Spot Training</strong></td><td>70-90%</td></tr>
+<tr><td>Steady-state 24/7, long-term commitment acceptable</td><td><strong>3-year Compute Savings Plans</strong></td><td>~66%</td></tr>
+<tr><td>Steady-state 24/7, moderate commitment</td><td><strong>1-year Compute Savings Plans</strong></td><td>~30-40%</td></tr>
+<tr><td>Burst / seasonal (4-8 hrs/day)</td><td><strong>Spot</strong> (NOT RI — RI wastes idle time)</td><td>70-90%</td></tr>
+<tr><td>ElastiCache / RDS persistent nodes (24/7)</td><td><strong>Reserved Nodes (1-year)</strong></td><td>~35-40%</td></tr>
+<tr><td>No commitment (startup, variable workload)</td><td>Fargate on-demand, Aurora Serverless v2, DynamoDB on-demand</td><td>Pay-per-use</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">CRITICAL TRAP</div>RI/SP for burst workloads = paying for idle time. e.g. 6hr/day job on 1-year RI = 75% waste even with 40% discount. <strong>Always match commitment to utilization pattern.</strong><br>Savings Plans: Compute SP = EC2 + Fargate + Lambda. EC2 Instance SP = specific family. RI = specific instance type in specific AZ/region.</div>
+<div class="tags"><span class="tag">Spot</span><span class="tag">Savings Plans</span><span class="tag">Reserved Instances</span><span class="tag">On-Demand</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">S3 Storage Tier Selection — Lifecycle Rules vs Intelligent-Tiering</span><span class="counter">Scenarios 4 · 9 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Need to optimize S3 storage costs based on object access patterns</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Access Pattern</th><th>Best Tier</th><th>$/GB/month</th></tr></thead><tbody>
+<tr><td>Accessed within 30 days</td><td>S3 Standard</td><td>$0.023</td></tr>
+<tr><td>Accessed 30-90 days, ms retrieval needed</td><td>S3 Standard-IA</td><td>~$0.0125</td></tr>
+<tr><td>Accessed infrequently, ms retrieval OK</td><td>S3 Glacier Instant Retrieval</td><td>$0.004</td></tr>
+<tr><td><strong>Never accessed, legal hold / compliance only</strong></td><td><strong>S3 Glacier Deep Archive</strong></td><td>$0.00099</td></tr>
+<tr><td><strong>Unknown / unpredictable access patterns</strong></td><td><strong>S3 Intelligent-Tiering</strong></td><td>+$0.0025/1K objects monitoring fee</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">KEY RULES</div>• Known predictable patterns → explicit Lifecycle rules (no monitoring fee). At billions of objects the Intelligent-Tiering monitoring fee can exceed storage savings.<br>• Never-accessed data → Deep Archive (4× cheaper than Glacier IR). Paying for ms retrieval you'll never use is waste.<br>• Glacier IR minimum storage duration = 90 days. Deep Archive minimum = 180 days. Objects deleted before minimums incur early deletion fees.</div>
+<div class="tags"><span class="tag">S3 Lifecycle</span><span class="tag">Glacier Deep Archive</span><span class="tag">Intelligent-Tiering</span><span class="tag">Standard-IA</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">NAT Gateway Cost Elimination — VPC Gateway and Interface Endpoints</span><span class="counter">Scenario 69 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>High NAT Gateway data processing charges from EC2 instances in private subnets accessing AWS services (S3, DynamoDB, SSM, Secrets Manager, ECR)</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>AWS Service</th><th>Endpoint Type</th><th>Cost</th></tr></thead><tbody>
+<tr><td>S3, DynamoDB</td><td><strong>VPC Gateway Endpoint</strong></td><td><strong>FREE</strong> — zero data processing charges</td></tr>
+<tr><td>SSM, Secrets Manager, ECR, KMS, STS, CloudWatch, etc.</td><td><strong>VPC Interface Endpoint (PrivateLink)</strong></td><td>$0.01/GB vs NAT $0.045/GB = 78% reduction</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Moving EC2 to public subnets to avoid NAT — security anti-pattern, direct internet exposure<br>• Adding NAT GW per AZ — reduces cross-AZ NAT overhead but does not eliminate S3/DynamoDB charges<br>• Confuse Gateway Endpoints (free, S3/DynamoDB only) with Interface Endpoints (PrivateLink, hourly + data fees)</div>
+<div class="why-block"><div class="block-label">QUICK MATH</div>NAT GW = $0.045/GB. Gateway Endpoint = $0. For 100GB/day to S3 = $4.50/day = $135/month eliminated per VPC. At scale this is enormous.</div>
+<div class="tags"><span class="tag">VPC Gateway Endpoint</span><span class="tag">VPC Interface Endpoint</span><span class="tag">NAT Gateway</span><span class="tag">PrivateLink</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Inter-AZ Data Transfer Cost Elimination — AZ-Aware Routing</span><span class="counter">Scenario 69 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>High inter-AZ transfer costs from ECS tasks in AZ-a calling RDS/ElastiCache in AZ-b, or cross-AZ load balancer traffic</div>
+<div class="then-block"><div class="block-label">THEN</div>Enable <strong>AZ-aware routing</strong>: ECS Service Connect with AZ-affinity, or configure application to call same-AZ reader endpoint. For ALB: enable <strong>cross-zone load balancing disabled</strong> or use NLB with AZ-local DNS. Ensures callers always reach same-AZ targets.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Changing the database engine to fix inter-AZ costs — the charge comes from <em>traffic crossing AZs</em>, not the engine<br>• Deploying all resources in a single AZ — removes HA for marginal cost saving</div>
+<div class="why-block"><div class="block-label">KEY FACT</div>Inter-AZ data transfer = $0.01/GB <em>each way</em>. For high-throughput microservices this compounds rapidly. Always co-locate callers and callees in the same AZ.</div>
+<div class="tags"><span class="tag">Inter-AZ</span><span class="tag">ECS Service Connect</span><span class="tag">AZ-affinity</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Idle Cluster Cost — Redshift Pause/Resume + Transient EMR + SageMaker Serverless</span><span class="counter">Scenarios 59 · 64 · 74</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Redshift cluster idle most of the day. EMR clusters running 24/7 for 6hr/day jobs. SageMaker endpoints nearly idle (&lt;10 req/day).</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Service</th><th>Fix</th><th>Saving</th></tr></thead><tbody>
+<tr><td>Redshift (4hrs active, 20hrs idle)</td><td><strong>Redshift pause/resume</strong></td><td>~83% (pay 4/24 hrs only)</td></tr>
+<tr><td>EMR (6hrs active, 18hrs idle)</td><td><strong>Transient clusters</strong> (launch → run → terminate)</td><td>~75%</td></tr>
+<tr><td>EMR task nodes (stateless)</td><td><strong>EC2 Spot for task nodes</strong></td><td>additional 70-90%</td></tr>
+<tr><td>SageMaker Training (interruptible)</td><td><strong>Managed Spot Training</strong> with checkpointing</td><td>70-90%</td></tr>
+<tr><td>SageMaker near-idle endpoints</td><td><strong>Serverless Inference</strong> (pay per invocation, $0 idle)</td><td>~99% on near-zero traffic</td></tr>
+<tr><td>SageMaker idle notebooks</td><td><strong>Studio idle shutdown</strong> (built-in, stops kernel after idle period)</td><td>100% of idle cost</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>RI/SP for a cluster running 25% of the time — the discount (40%) does not offset paying for 75% idle time. Idle compute = transient/serverless, not reserved.</div>
+<div class="tags"><span class="tag">Redshift Pause/Resume</span><span class="tag">Transient EMR</span><span class="tag">Spot</span><span class="tag">SageMaker Serverless</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">CloudWatch Logs Cost Reduction — Log Level + Export to S3</span><span class="counter">Scenario 69 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>CloudWatch Logs ingestion cost is very high — application logs include DEBUG-level output in production, long retention in CloudWatch</div>
+<div class="then-block"><div class="block-label">THEN</div>Set application <strong>log level to INFO or WARN</strong> in production (DEBUG generates 10-100× more log volume → 80-90% ingestion cost reduction). Export logs older than 7-30 days to <strong>S3</strong> ($0.023/GB/month) or <strong>S3 Glacier Instant Retrieval</strong> ($0.004/GB/month) for compliance retention. Set CloudWatch retention to 30 days.</div>
+<div class="not-block"><div class="block-label">NEVER</div>Delete all CloudWatch Logs — removes operational visibility. Never set retention to &lt;7 days for production systems needing incident investigation capability.</div>
+<div class="tags"><span class="tag">CloudWatch Logs</span><span class="tag">Log Level</span><span class="tag">S3 Export</span><span class="tag">CW Retention</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Data Transfer Cost — CloudFront vs Direct EC2/S3 Egress</span><span class="counter">Scenario 64 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>High EC2 or S3 data transfer out costs for content served directly to end users</div>
+<div class="then-block"><div class="block-label">THEN</div>Route content through <strong>CloudFront</strong>:
+<table><thead><tr><th>Path</th><th>$/GB (approx)</th><th>Difference</th></tr></thead><tbody>
+<tr><td>EC2 data transfer out</td><td>$0.09</td><td>Baseline</td></tr>
+<tr><td>S3 data transfer out</td><td>$0.09</td><td>Baseline</td></tr>
+<tr><td><strong>CloudFront data transfer out</strong></td><td><strong>$0.0085</strong></td><td><strong>~90% cheaper</strong></td></tr>
+<tr><td>CloudFront Origin Shield</td><td>Small additional fee</td><td>Reduces origin requests by 60-80%</td></tr>
+</tbody></table>
+Also use <strong>CloudFront OAC</strong> (Origin Access Control) to block direct S3 URLs and force all traffic through CloudFront.
+</div>
+<div class="tags"><span class="tag">CloudFront</span><span class="tag">Data Transfer</span><span class="tag">OAC</span><span class="tag">Origin Shield</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Fargate Right-Sizing + Aurora Serverless v2 + AZ-Local Routing</span><span class="counter">Scenario 14</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Fargate at 15% avg CPU utilization, Aurora idle 40% off-hours, S3 logs never accessed after 30 days, cross-AZ data transfer costs high — no re-architecture allowed</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Issue</th><th>Fix</th><th>Saving</th></tr></thead><tbody>
+<tr><td>Fargate over-provisioned (15% CPU)</td><td>Right-size task definition (halve vCPU/memory)</td><td>~50% on Fargate line item</td></tr>
+<tr><td>Aurora idle off-hours</td><td>Aurora Serverless v2 <code>min ACU = 0.5</code></td><td>~30-40% on Aurora line item</td></tr>
+<tr><td>S3 logs, never read after 30 days</td><td>S3 Lifecycle: <strong>expire after 30 days</strong> (delete, not Glacier)</td><td>100% of post-30-day storage</td></tr>
+<tr><td>Cross-AZ data transfer</td><td>ECS Service Connect with AZ-local routing</td><td>Eliminates $0.01/GB cross-AZ charges</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Glacier transition for data with zero value after expiry — expiry (delete) is cheaper than Glacier storage<br>• Savings Plans on Fargate for 15% utilization — right-sizing saves more and costs nothing extra<br>• Single-AZ deployment to eliminate cross-AZ costs — removes HA</div>
+<div class="tags"><span class="tag">Fargate Right-sizing</span><span class="tag">Aurora Serverless v2</span><span class="tag">S3 Lifecycle</span><span class="tag">AZ-local routing</span></div>
+</div>
+</details>
+
+<!-- ═══════════════════════════════ DOMAIN 5 ═══════════════════════════════ -->
+<div class="domain-header" id="d5"><span class="domain-badge d5">Domain 5 — Continuous Improvement for Existing Solutions</span></div>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Aurora Global Database — RTO/RPO Targets + Read Latency + False-Positive Health Checks</span><span class="counter">Scenarios 5 · 15 · 60</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Multi-region DR needed: RTO &lt;15min, RPO &lt;1min. Or cross-region read latency too high for remote users. Or Route 53 health checks triggering false failovers.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Need</th><th>Solution</th></tr></thead><tbody>
+<tr><td>RPO &lt;1 minute (database)</td><td><strong>Aurora Global Database</strong> (storage replication ~1s lag)</td></tr>
+<tr><td>RPO seconds (EC2 compute)</td><td><strong>AWS Elastic Disaster Recovery (DRS)</strong> (continuous block-level)</td></tr>
+<tr><td>RTO &lt;15 minutes</td><td><strong>Route 53 ARC routing controls</strong> (operator-controlled switch, no DNS TTL)</td></tr>
+<tr><td>Cross-region read P99 latency</td><td><strong>Read-local routing</strong> to Aurora Global DB secondary endpoint</td></tr>
+<tr><td>False-positive health check failovers</td><td>Replace standard Route 53 health checks with <strong>ARC routing controls</strong></td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Aurora binary log replication — higher lag, more ops than Aurora Global Database<br>• Standard Route 53 health checks for DR — prone to false positives, TTL delay<br>• Write forwarding to fix read latency — adds 60-90ms per write, doesn't help reads</div>
+<div class="why-block"><div class="block-label">FAILOVER SPEED</div>Managed failover API (<code>failover-global-cluster</code>) → RTO &lt;1 minute. Manual promotion → 1-5 min. DNS failover → 15-60 min (TTL dependent).</div>
+<div class="tags"><span class="tag">Aurora Global Database</span><span class="tag">Route 53 ARC</span><span class="tag">AWS DRS</span><span class="tag">Pilot Light</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">DynamoDB Hot Partitions — Write Sharding + DAX for Read Caching</span><span class="counter">Scenarios 45 · 65</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>DynamoDB <code>ProvisionedThroughputExceededException</code> on specific partition keys (popular SKUs, viral items). High RCU cost from repeated hot-item reads.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Problem</th><th>Fix</th></tr></thead><tbody>
+<tr><td>Hot write partitions</td><td><strong>Write sharding</strong>: append random suffix to partition key (<code>SKU-001-shard-3</code>). Scatter writes across N partitions. Scatter-gather on read.</td></tr>
+<tr><td>Hot read partitions + high RCU cost</td><td><strong>DynamoDB DAX</strong> (in-memory cluster, microsecond reads, drop-in DynamoDB API replacement, caches hot items)</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• DynamoDB auto-scaling — 5-15 min reaction time, doesn't fix per-partition throttling during spikes<br>• DynamoDB on-demand capacity — still throttles at per-partition limits (3K RCU / 1K WCU per partition)<br>• ElastiCache Redis instead of DAX — Redis requires application code changes; DAX is a drop-in DynamoDB API replacement</div>
+<div class="why-block"><div class="block-label">KEY FACT</div>DynamoDB per-partition limits: <strong>3K RCU / 1K WCU</strong> regardless of table capacity mode. Only sharding distributes writes across multiple partitions. Table-level capacity doesn't help hot partitions.</div>
+<div class="tags"><span class="tag">DynamoDB</span><span class="tag">Write Sharding</span><span class="tag">DAX</span><span class="tag">Hot Partition</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Lambda Cold Start — SnapStart (Java) vs Provisioned Concurrency</span><span class="counter">Scenario 45 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Lambda cold start &gt;2s on Java runtime (Spring Boot). Or any runtime with cold start latency causing P99 SLA violations.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Solution</th><th>How</th><th>Cost</th><th>Best For</th></tr></thead><tbody>
+<tr><td><strong>Lambda SnapStart</strong></td><td>Snapshots initialized execution environment after init phase. Restores from snapshot on cold start.</td><td>No additional cost during idle</td><td>Java 11/17/21 only. Cold start drops to &lt;1s.</td></tr>
+<tr><td><strong>Provisioned Concurrency</strong></td><td>Pre-warms N instances, always warm, zero cold start</td><td>Pay for pre-warmed instances always</td><td>Any runtime. Guaranteed zero cold start when concurrency is within provisioned capacity.</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Increasing Lambda memory to fix cold starts — memory reduces execution duration, NOT initialization time (Spring Boot startup = I/O bound, not CPU bound)<br>• Rewriting in Python/Node.js — valid but SnapStart is less invasive. Python cold starts can also be significant for large functions.</div>
+<div class="tags"><span class="tag">Lambda SnapStart</span><span class="tag">Provisioned Concurrency</span><span class="tag">Cold Start</span><span class="tag">Java</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">SQS DLQ — Root Cause vs Symptom Fix + Message Schema Validation</span><span class="counter">Scenario 45 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>SQS DLQ accumulating thousands of messages — Lambda consumer failing on malformed payloads or processing errors</div>
+<div class="then-block"><div class="block-label">THEN</div>Fix the consumer logic: add <strong>schema validation</strong> → on valid: process + explicit <code>DeleteMessage</code>. On invalid payload: log to S3 quarantine + explicit <code>DeleteMessage</code> (don't re-enqueue). On genuine processing failure: let message return to queue and DLQ after <code>maxReceiveCount</code>. Then replay existing DLQ messages with corrected consumer.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Replay DLQ without fixing the consumer — same malformed messages go straight back to DLQ<br>• Increasing visibility timeout — does not fix malformed message handling, just delays DLQ entry<br>• Deleting DLQ messages without investigation — loss of debugging data</div>
+<div class="why-block"><div class="block-label">KEY FACT</div>SQS Lambda trigger: Lambda must call <code>DeleteMessage</code> on success. Without explicit delete, the message returns to queue after visibility timeout. DLQ receives messages after <code>maxReceiveCount</code> processing attempts.</div>
+<div class="tags"><span class="tag">SQS</span><span class="tag">DLQ</span><span class="tag">Lambda</span><span class="tag">Schema Validation</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">EKS/ECS Observability — ADOT Tracing + App Mesh Circuit Breaker + Argo Rollouts Canary</span><span class="counter">Scenarios 10 · 65</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Cannot trace requests across microservices. Slow downstream service causing cascading failures. No automated canary rollback with &lt;5% blast radius.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Problem</th><th>Solution</th></tr></thead><tbody>
+<tr><td>Cross-service distributed tracing</td><td><strong>AWS Distro for OpenTelemetry (ADOT)</strong> DaemonSet → X-Ray (trace ID propagated via <code>X-Amzn-Trace-Id</code> header through all 12 services)</td></tr>
+<tr><td>Cascading failure from slow upstream</td><td><strong>App Mesh Envoy</strong> <code>outlierDetection</code> (passive circuit breaker — ejects failing upstream from pool, no app code changes)</td></tr>
+<tr><td>Canary with automated rollback</td><td><strong>Argo Rollouts</strong> + CloudWatch Analysis Template (auto-rollback on error rate threshold at 5% traffic)</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• CodeDeploy for EKS Fargate pod-level canary — CodeDeploy integrates with EC2/Lambda, not Kubernetes Deployment objects<br>• K8s liveness probes as circuit breakers — probes restart pods, don't prevent thread pool exhaustion from slow upstream<br>• Jaeger (self-managed) when ADOT is available — adds operational overhead</div>
+<div class="tags"><span class="tag">ADOT</span><span class="tag">X-Ray</span><span class="tag">App Mesh</span><span class="tag">Argo Rollouts</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Kinesis Hot Shards — Partition Key Cardinality + Lambda Iterator Age</span><span class="counter">Scenario 75</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Kinesis shards unbalanced (3/20 shards get 80% of records) due to low-cardinality partition key. Lambda iterator age rising (&gt;15 min) due to slow processing.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Problem</th><th>Fix</th></tr></thead><tbody>
+<tr><td>Hot write shards (low-cardinality partition key)</td><td>Change producer partition key to <strong>high-cardinality value</strong> (e.g. <code>customer_id</code>, <code>record_uuid</code>) — uniform hash distribution across all shards</td></tr>
+<tr><td>Lambda iterator age &gt;15min (slow HTTP enrichment call)</td><td>Decouple enrichment: Lambda writes raw record to S3/SQS immediately (&lt;5ms), separate async process calls enrichment API</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Increasing shard count for low-cardinality key — 4 values on 40 shards = still only 4 shards get traffic<br>• Kinesis Enhanced Fan-Out for hot shards — EFO increases <em>read</em> throughput per consumer, does NOT fix hot <em>write</em> shard imbalance</div>
+<div class="why-block"><div class="block-label">ROOT CAUSE</div>Low cardinality partition key (e.g. 4 values) → at most 4 shard hash buckets active → remaining shards idle. Fix is always at the <em>producer partition key</em>.</div>
+<div class="tags"><span class="tag">Kinesis</span><span class="tag">Hot Shard</span><span class="tag">Partition Key</span><span class="tag">Iterator Age</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">RDS Performance — Performance Insights + Read Replicas + VACUUM + Replica Lag</span><span class="counter">Scenarios 70 · 75</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>RDS/Aurora CPU 90% at peak, query performance degraded 40% over months, read replica lagging 45s during peak, no maintenance performed</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Problem</th><th>Fix</th></tr></thead><tbody>
+<tr><td>High writer CPU, unknown query bottleneck</td><td><strong>RDS Performance Insights</strong> (DB load per SQL, wait events, top SQL ranked by impact)</td></tr>
+<tr><td>Offload reads from writer</td><td>Add <strong>RDS/Aurora Read Replica</strong>, route SELECT queries to replica endpoint</td></tr>
+<tr><td>Table bloat + stale planner stats</td><td><strong>Redshift Automatic Table Optimization (ATO)</strong> or enable Aurora automatic VACUUM/ANALYZE</td></tr>
+<tr><td>Replica lag 45s during peak</td><td>Route latency-sensitive reads to writer, or upgrade replica instance class, or reduce write transaction size</td></tr>
+</tbody></table>
+</div>
+<div class="tags"><span class="tag">RDS Performance Insights</span><span class="tag">VACUUM</span><span class="tag">Read Replica</span><span class="tag">Aurora</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Lambda Canary + Weighted Aliases + CodeDeploy Automated Rollback</span><span class="counter">Scenarios 50 · 65 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Lambda deployed directly without staged rollout — production incidents from bad deployments, need automated canary with &lt;5% blast radius and auto-rollback</div>
+<div class="then-block"><div class="block-label">THEN</div><strong>Lambda weighted aliases</strong>: <code>aws lambda update-alias --routing-config AdditionalVersionWeights={"2":0.10}</code> → 10% traffic to new version. <strong>CodeDeploy</strong> with <code>LambdaCanary10Percent5Minutes</code> deployment config automates traffic shift + monitors CloudWatch alarm → auto-rolls back if error rate exceeds threshold.</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Deploy Lambda directly to production without an alias — no canary capability, immediate 100% blast radius<br>• CodeDeploy <code>LINEAR_10PERCENT_EVERY_1MINUTE</code> for EKS pod-level canary — CodeDeploy is for EC2/Lambda, not Kubernetes</div>
+<div class="tags"><span class="tag">Lambda Aliases</span><span class="tag">Canary</span><span class="tag">CodeDeploy</span><span class="tag">Weighted Routing</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Technical Debt Remediation — Drift, IAM Over-Privilege, Logs, S3 Encryption, EOL OS</span><span class="counter">Scenario 55</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>500 CloudFormation stacks with drift, 2,400 over-privileged IAM roles, no centralized logging, inconsistent S3 encryption, EOL EC2 OS with CVEs</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Problem</th><th>AWS-Native Fix</th></tr></thead><tbody>
+<tr><td>CloudFormation drift across 20 accounts</td><td><strong>Config conformance pack</strong> + <code>CLOUDFORMATION_STACK_DRIFT_DETECTION_CHECK</code></td></tr>
+<tr><td>Over-privileged IAM roles (2,400 roles)</td><td><strong>IAM Access Analyzer</strong> policy generation from CloudTrail (least-privilege based on actual usage history)</td></tr>
+<tr><td>No centralized logs (7-day per-account)</td><td><strong>CloudTrail Organization Trail</strong> + S3 Object Lock COMPLIANCE + <strong>CloudTrail Lake</strong> for SQL queries</td></tr>
+<tr><td>Inconsistent S3 encryption</td><td>SCP: Deny <code>s3:PutObject</code> unless <code>s3:x-amz-server-side-encryption = aws:kms</code></td></tr>
+<tr><td>EOL OS + CVEs</td><td><strong>Amazon Inspector</strong> (CVE scanning org-wide) → Security Hub + <strong>SSM Patch Manager</strong></td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• AWS Config for CloudFormation stack drift — Config tracks <em>resource</em> configuration, not CF stack drift (requires <code>detect-stack-drift</code> API)<br>• GuardDuty for over-privileged IAM — GuardDuty = runtime anomaly detection, not static policy analysis<br>• CloudWatch Logs Insights for cross-account queries when logs are in per-account S3 — logs must first be in CloudWatch Logs</div>
+<div class="tags"><span class="tag">Config</span><span class="tag">IAM Access Analyzer</span><span class="tag">CloudTrail Lake</span><span class="tag">Inspector</span><span class="tag">SSM Patch</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Serverless Burst Handling — SQS Buffer + EventBridge Decoupling + PITR</span><span class="counter">Scenario 50</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>API Gateway 429s during traffic burst. EventBridge consumer overwhelmed (DLQ backlog). DynamoDB PITR disabled (accidental delete = hours of recovery). Lambda no staged rollout.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Issue</th><th>Fix</th></tr></thead><tbody>
+<tr><td>API GW burst → 429s</td><td>Add <strong>SQS queue</strong> in front (API GW → Lambda → SQS enqueue → 200 OK immediately; processing decoupled)</td></tr>
+<tr><td>Slow EventBridge consumer (DLQ backlog)</td><td>Add <strong>SQS queue between EventBridge and Lambda</strong> consumer (buffer, AZ-resilient, Standard SQS not FIFO)</td></tr>
+<tr><td>DynamoDB PITR disabled</td><td>Enable <strong>DynamoDB PITR</strong> (restore to any second in last 35 days — 1-click recovery)</td></tr>
+<tr><td>No Lambda canary</td><td><strong>Lambda weighted alias</strong> + CodeDeploy + CloudWatch alarm auto-rollback</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>SQS FIFO for high-throughput EventBridge fan-out — FIFO max 3K msg/sec. Use Standard SQS (unlimited throughput) for high-volume buffering.</div>
+<div class="tags"><span class="tag">SQS Buffer</span><span class="tag">DynamoDB PITR</span><span class="tag">Lambda Alias</span><span class="tag">EventBridge</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">CI/CD Improvements — Blue/Green, Build Cache, Secrets, Rollback</span><span class="counter">General — High Frequency</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>CodeDeploy in-place causing downtime. Slow builds. Secrets hardcoded. Manual rollback takes hours.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Problem</th><th>Fix</th></tr></thead><tbody>
+<tr><td>Deployment downtime</td><td><strong>CodeDeploy Blue/Green</strong> with ALB traffic shifting (zero-downtime, instant rollback)</td></tr>
+<tr><td>Slow builds</td><td><strong>CodeBuild caching</strong> (S3 or local cache for dependencies) + ARM-based builds (Graviton = 20% cheaper)</td></tr>
+<tr><td>No automated testing gate</td><td>CodePipeline Test stage → CodeBuild action → fail pipeline on test failure before deploy</td></tr>
+<tr><td>Secrets in buildspec.yml</td><td><strong>AWS Secrets Manager</strong> referenced as CodeBuild environment variable (auto-injected at runtime)</td></tr>
+<tr><td>Slow rollback</td><td>Blue/Green: shift ALB weight back to Blue = &lt;60 seconds</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>SSM Parameter Store for secrets needing automatic rotation — Parameter Store has no built-in rotation Lambda. Secrets Manager has built-in rotation for RDS, Redshift, DocumentDB.</div>
+<div class="tags"><span class="tag">CodeDeploy Blue/Green</span><span class="tag">CodeBuild Cache</span><span class="tag">Secrets Manager</span><span class="tag">CodePipeline</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Well-Architected DR — RTO/RPO + WAF + mTLS + Secrets Rotation + Chaos Engineering</span><span class="counter">Scenario 60</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Well-Architected review gaps: 8hr RTO / 4hr RPO, no WAF, 14-month-old secrets, HTTP internal traffic, no chaos testing</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Gap</th><th>Fix</th></tr></thead><tbody>
+<tr><td>RTO 8hr → &lt;15min</td><td>DRS (EC2 continuous replication) + Aurora Global Database + Route 53 ARC routing controls</td></tr>
+<tr><td>No WAF (SQL injection in logs)</td><td><strong>AWS WAF</strong> + AWS Managed Rule Groups (<code>AWSManagedRulesSQLiRuleSet</code>, <code>CommonRuleSet</code>) on API Gateway</td></tr>
+<tr><td>Manual secret rotation (14 months)</td><td><strong>Secrets Manager automatic rotation</strong> (built-in Lambda for RDS — dual-password, zero downtime)</td></tr>
+<tr><td>HTTP internal VPC traffic</td><td><strong>ACM Private CA</strong> + App Mesh mTLS (encrypts service-to-service traffic, no app code changes)</td></tr>
+<tr><td>No chaos testing</td><td><strong>AWS Fault Injection Simulator (FIS)</strong> — managed experiments (AZ failure, network latency, instance termination) with safety guardrails</td></tr>
+</tbody></table>
+</div>
+<div class="not-block"><div class="block-label">NEVER</div>• Shield Advanced as WAF — Shield = volumetric DDoS protection. SQLi = application-layer → AWS WAF<br>• Parameter Store for automatic rotation — only Secrets Manager has built-in rotation Lambda<br>• CloudWatch alarms as chaos engineering — alarms react to failures, they don't inject failures</div>
+<div class="tags"><span class="tag">AWS WAF</span><span class="tag">Secrets Manager</span><span class="tag">ACM Private CA</span><span class="tag">FIS</span><span class="tag">AWS DRS</span></div>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">Glue ETL Data Quality + Pipeline Reliability Patterns</span><span class="counter">Scenario 75 · General</span></summary>
+<div class="pattern-body">
+<div class="if-block"><div class="block-label">IF / WHEN</div>Glue ETL jobs failing on malformed source files. Bad data reaching Redshift corrupting dashboards. No data quality checks between pipeline stages.</div>
+<div class="then-block"><div class="block-label">THEN</div>
+<table><thead><tr><th>Problem</th><th>Fix</th></tr></thead><tbody>
+<tr><td>Glue re-processing already-ingested files</td><td><strong>Glue job bookmarks</strong> — tracks already-processed S3 objects, skips them on next run</td></tr>
+<tr><td>Malformed files causing job failures</td><td>Pre-validation Lambda/Glue Python shell → quarantine malformed files to S3 error prefix → SNS alert upstream team</td></tr>
+<tr><td>No data quality gates</td><td><strong>AWS Glue Data Quality</strong> — DQ rules (completeness, referential integrity, range) evaluated inline during ETL. Failed records → quarantine before Redshift.</td></tr>
+<tr><td>Redshift table bloat / stale stats</td><td><strong>Redshift Automatic Table Optimization (ATO)</strong> — background VACUUM + ANALYZE automatically</td></tr>
+</tbody></table>
+</div>
+<div class="tags"><span class="tag">Glue</span><span class="tag">Job Bookmarks</span><span class="tag">Glue Data Quality</span><span class="tag">Redshift ATO</span></div>
+</div>
+</details>
+
+<!-- ═══════════════════════════════ UNIVERSAL ═══════════════════════════════ -->
+<div class="domain-header" id="dx"><span class="domain-badge dx">Universal Exam Traps, Speed Reference &amp; Core Patterns</span></div>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">⚠️ Top 30 Exam Traps — Service Confusion &amp; Wrong Tool Selection</span></summary>
+<div class="pattern-body">
+<table><thead><tr><th>Trap</th><th>Reality</th></tr></thead><tbody>
+<tr><td>Step Functions Express for long-running workflows</td><td><strong>Express = 5min max.</strong> Long-running = Standard (up to 1 year)</td></tr>
+<tr><td>SageMaker Async Inference for real-time scoring</td><td>Async = minutes latency. Real-time endpoint = ms latency</td></tr>
+<tr><td>ElastiCache Redis = HIPAA BAA eligible</td><td>Redis is <strong>NOT HIPAA BAA eligible</strong>. Use DynamoDB or Aurora instead.</td></tr>
+<tr><td>VPC Peering for transitive routing</td><td>VPC Peering = <strong>non-transitive</strong>. A→B→C routing requires Transit Gateway.</td></tr>
+<tr><td>AWS SMS for new migrations</td><td>SMS is <strong>deprecated</strong>. Always use AWS MGN.</td></tr>
+<tr><td>Shield Advanced for SQLi protection</td><td>Shield = volumetric DDoS. SQLi = <strong>AWS WAF Managed Rules</strong></td></tr>
+<tr><td>AWS Config detects CloudFormation stack drift</td><td>Config tracks resource config. CF drift = <code>detect-stack-drift</code> API (separate call)</td></tr>
+<tr><td>GuardDuty identifies over-privileged IAM policies</td><td>GuardDuty = runtime anomaly detection. Static over-privilege = <strong>IAM Access Analyzer</strong></td></tr>
+<tr><td>Rekognition for PII/PHI detection in documents</td><td>Rekognition = images/video only. PII/PHI in documents = <strong>Amazon Macie</strong></td></tr>
+<tr><td>DMS for SAP HANA migration</td><td>DMS does <strong>not support SAP HANA</strong>. Use HANA System Replication (HSR).</td></tr>
+<tr><td>Aurora Serverless v2 achieves RPO=0</td><td>Aurora Global DB replication ~1s lag ≠ RPO=0. Dual-region producers = RPO=0.</td></tr>
+<tr><td>IAM Permission Boundary overrides SCP</td><td>Permission boundaries <strong>cannot override SCPs</strong>. SCPs are evaluated before IAM.</td></tr>
+<tr><td>Route 53 health checks for instant regional removal</td><td>DNS TTL delay. Use <strong>Global Accelerator weight=0</strong> or ARC routing controls.</td></tr>
+<tr><td>Kinesis Enhanced Fan-Out fixes hot write shards</td><td>EFO increases <em>read</em> consumer bandwidth. Hot shards = producer <strong>partition key cardinality</strong> problem.</td></tr>
+<tr><td>EFS for Windows SMB workloads</td><td>EFS = NFS protocol. Windows SMB = <strong>FSx for Windows File Server</strong></td></tr>
+<tr><td>SSM Parameter Store for automatic secret rotation</td><td>Parameter Store has no auto-rotation Lambda. <strong>Secrets Manager</strong> = built-in rotation.</td></tr>
+<tr><td>EventBridge for 500K events/sec</td><td>EventBridge default ~10K events/sec. High-throughput = <strong>Kinesis Data Streams</strong></td></tr>
+<tr><td>AWS Mainframe Modernization for WebSphere migration</td><td>MM = COBOL/PL1 mainframes (IBM Z, Unisys). WebSphere = refactor to Tomcat/ECS.</td></tr>
+<tr><td>Athena for real-time dashboards (&lt;200ms)</td><td>Athena = batch query, seconds to minutes. Real-time = <strong>DynamoDB / ElastiCache</strong></td></tr>
+<tr><td>S3 Object Lock GOVERNANCE = truly immutable</td><td>GOVERNANCE can be bypassed with <code>s3:BypassGovernanceRetention</code>. <strong>COMPLIANCE mode = truly immutable</strong> (even root cannot delete).</td></tr>
+<tr><td>Management account is subject to SCPs</td><td>SCPs <strong>never apply to the management account</strong>. Only member accounts.</td></tr>
+<tr><td>DynamoDB on-demand = no throttling ever</td><td>On-demand still throttles at per-partition limits (3K RCU / 1K WCU). Hot partitions still need sharding.</td></tr>
+<tr><td>Aurora Global Database has a single writer in all regions</td><td>Aurora Global Database has <strong>one writer</strong> (primary region only). All other regions are read-only unless failed over.</td></tr>
+<tr><td>S3 Transfer Acceleration for 10PB when bandwidth is 200Mbps</td><td>Transfer Acceleration optimizes routing, but <em>bandwidth is still 200Mbps</em>. 10PB @ 200Mbps = 4.6 years. Use <strong>Snowball Edge</strong>.</td></tr>
+<tr><td>NLB for WAF integration</td><td>AWS WAF integrates with ALB, API Gateway, CloudFront, and AppSync — <strong>NOT NLB</strong>.</td></tr>
+<tr><td>CloudWatch Logs Insights queries S3-stored logs</td><td>CW Logs Insights only queries data <em>in CloudWatch Logs</em>. S3-stored logs → <strong>Athena</strong>.</td></tr>
+<tr><td>Kinesis Firehose = real-time delivery</td><td>Firehose minimum buffer = <strong>60 seconds</strong>. Not real-time. Use Kinesis Data Streams for real-time fan-out.</td></tr>
+<tr><td>S3 bucket versioning protects against accidental delete</td><td>Versioning keeps previous versions, but a <code>DeleteObject</code> with version ID permanently removes it. Use <strong>MFA Delete</strong> or <strong>Object Lock</strong> for true protection.</td></tr>
+<tr><td>MSMQ can be migrated to SQS without code changes</td><td>MSMQ uses COM API; SQS uses HTTP/SDK. <strong>Code changes required</strong>. Co-locate MSMQ on EC2 if no code changes allowed.</td></tr>
+<tr><td>Increasing shard count fixes Kinesis hot shards</td><td>With low-cardinality partition key (4 values), doubling shards = still only 4 active shards. Fix the <strong>partition key cardinality</strong>.</td></tr>
+</tbody></table>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">⚡ Speed Reference — All Key AWS Service Numbers &amp; Limits</span></summary>
+<div class="pattern-body">
+<table><thead><tr><th>Service</th><th>Key Number</th><th>Why It Matters on the Exam</th></tr></thead><tbody>
+<tr><td>Step Functions Express</td><td><strong>5 minutes max</strong></td><td>Eliminates it for any workflow &gt;5min</td></tr>
+<tr><td>Step Functions Standard</td><td><strong>1 year max</strong></td><td>Use for long-running workflows</td></tr>
+<tr><td>Lambda timeout</td><td><strong>15 minutes max</strong></td><td>Batch jobs &gt;15min → ECS/EMR</td></tr>
+<tr><td>Lambda memory</td><td><strong>128MB – 10,240MB</strong></td><td>More memory = more CPU, lower execution time</td></tr>
+<tr><td>Lambda@Edge timeout</td><td><strong>30s (viewer), 5s (origin)</strong></td><td>Not for complex API logic</td></tr>
+<tr><td>Lambda deployment package</td><td><strong>50MB zipped, 250MB unzipped, 10GB container</strong></td><td>Large ML models → container image</td></tr>
+<tr><td>API Gateway WebSocket connections</td><td><strong>128K concurrent</strong></td><td>Sufficient for most real-time apps</td></tr>
+<tr><td>EventBridge throughput</td><td><strong>~10K events/sec default per bus</strong></td><td>Not for high-throughput streaming</td></tr>
+<tr><td>SQS FIFO throughput</td><td><strong>3K msg/sec with batching</strong></td><td>High-throughput → Standard SQS</td></tr>
+<tr><td>SQS message retention</td><td><strong>up to 14 days</strong></td><td>Maximum time a message stays in queue</td></tr>
+<tr><td>SQS visibility timeout</td><td><strong>up to 12 hours</strong></td><td>Set &gt; processing time to prevent duplicate delivery</td></tr>
+<tr><td>Kinesis shard write capacity</td><td><strong>1 MB/s or 1K records/s per shard</strong></td><td>Scale shards for throughput</td></tr>
+<tr><td>Kinesis Firehose buffer</td><td><strong>60 seconds minimum</strong></td><td>Not for real-time delivery requirements</td></tr>
+<tr><td>DynamoDB per-partition limits</td><td><strong>3K RCU / 1K WCU per partition</strong></td><td>Hot partitions need write sharding</td></tr>
+<tr><td>DynamoDB PITR window</td><td><strong>35 days</strong></td><td>Restore to any second within window</td></tr>
+<tr><td>Aurora Global DB replication lag</td><td><strong>typically &lt;1 second</strong></td><td>RPO&lt;1min ✓ but RPO=0 ✗</td></tr>
+<tr><td>Aurora Global DB managed failover</td><td><strong>RTO &lt;1 minute</strong></td><td>Use <code>failover-global-cluster</code> API</td></tr>
+<tr><td>CloudTrail event delivery</td><td><strong>up to 15 minutes</strong></td><td>Not for real-time compliance detection</td></tr>
+<tr><td>EC2 instance launch time</td><td><strong>60-90 seconds minimum</strong></td><td>Cannot absorb 30-second traffic spikes</td></tr>
+<tr><td>NAT Gateway data processing</td><td><strong>$0.045/GB</strong></td><td>VPC Gateway Endpoint = FREE</td></tr>
+<tr><td>CloudFront data transfer out</td><td><strong>~$0.0085/GB</strong></td><td>vs EC2 $0.09/GB — ~90% cheaper</td></tr>
+<tr><td>Inter-AZ data transfer</td><td><strong>$0.01/GB each way</strong></td><td>Use AZ-local routing to eliminate</td></tr>
+<tr><td>Snowball Edge usable storage</td><td><strong>100TB per device</strong></td><td>10PB = 100 devices</td></tr>
+<tr><td>S3 Glacier Deep Archive retrieval</td><td><strong>12 hours standard</strong></td><td>Not for operational/active data</td></tr>
+<tr><td>S3 Standard-IA minimum storage</td><td><strong>30 days</strong></td><td>Objects deleted before 30 days charged for 30 days</td></tr>
+<tr><td>S3 Glacier IR minimum storage</td><td><strong>90 days</strong></td><td>Early deletion fee applies</td></tr>
+<tr><td>S3 Glacier Deep Archive minimum</td><td><strong>180 days</strong></td><td>Early deletion fee applies</td></tr>
+<tr><td>RDS automated backup window</td><td><strong>up to 35 days PITR</strong></td><td>Restore to any point in the window</td></tr>
+<tr><td>ECS Fargate task size</td><td><strong>0.25-4 vCPU, up to 30GB</strong></td><td>Large ML inference → EC2 GPU needed</td></tr>
+<tr><td>CloudFront distribution count</td><td>200 per account (default)</td><td>Requestable increase for large-scale SaaS</td></tr>
+</tbody></table>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">🏗️ Core Architecture Patterns — The 16 Patterns That Repeat</span></summary>
+<div class="pattern-body">
+<table><thead><tr><th>#</th><th>Pattern</th><th>Components</th><th>Use When</th></tr></thead><tbody>
+<tr><td>1</td><td><strong>Centralized Egress</strong></td><td>TGW + Egress VPC + NAT GW</td><td>All VPCs share one internet exit point</td></tr>
+<tr><td>2</td><td><strong>Centralized Inspection</strong></td><td>TGW (2 route tables) + GWLB + Appliance Mode</td><td>All traffic inspected by firewall without bypass</td></tr>
+<tr><td>3</td><td><strong>Hub-and-Spoke DNS</strong></td><td>Route 53 Resolver Endpoints + Rules via RAM</td><td>Hybrid DNS across 80+ accounts without per-account resolvers</td></tr>
+<tr><td>4</td><td><strong>Saga (Compensating Tx)</strong></td><td>Step Functions Standard + Catch → Compensation states</td><td>Distributed transactions needing automatic rollback on failure</td></tr>
+<tr><td>5</td><td><strong>CQRS + Cache</strong></td><td>DynamoDB (write) + DAX or Redis (read)</td><td>High-read workloads needing sub-ms reads without RCU cost</td></tr>
+<tr><td>6</td><td><strong>Fanout</strong></td><td>SNS → multiple SQS queues or Lambda</td><td>One event triggers multiple independent consumers</td></tr>
+<tr><td>7</td><td><strong>Async Decoupling</strong></td><td>API GW → Lambda → SQS → Lambda consumer</td><td>Absorb traffic bursts, decouple producer and consumer speeds</td></tr>
+<tr><td>8</td><td><strong>Strangler Fig</strong></td><td>App Mesh Virtual Nodes (on-prem + cloud) + routing weights</td><td>Incremental microservice migration without big-bang cutover</td></tr>
+<tr><td>9</td><td><strong>Pilot Light DR</strong></td><td>DRS (EC2) + Aurora Global DB + Route 53 ARC</td><td>RTO &lt;15min, RPO &lt;1min, minimal standby cost</td></tr>
+<tr><td>10</td><td><strong>Blue/Green Deploy</strong></td><td>CodeDeploy + ALB target group weights</td><td>Zero-downtime deployments with instant rollback capability</td></tr>
+<tr><td>11</td><td><strong>Write Sharding</strong></td><td>DynamoDB partition key + random suffix</td><td>Hot partition elimination for high-write concentrated key sets</td></tr>
+<tr><td>12</td><td><strong>Data Lake</strong></td><td>S3 + Glue Catalog + Athena</td><td>SQL queries on structured/semi-structured data in S3 at any scale</td></tr>
+<tr><td>13</td><td><strong>Dual-Write for RPO=0</strong></td><td>Producer writes to Kinesis in 2 regions simultaneously</td><td>Streaming pipelines requiring zero data loss on regional failure</td></tr>
+<tr><td>14</td><td><strong>Leaderboard Two-Tier</strong></td><td>DynamoDB Global Tables (durable) + Redis sorted sets (fast reads)</td><td>Global real-time rankings with &lt;1ms read latency and durable writes</td></tr>
+<tr><td>15</td><td><strong>Event-Driven Remediation</strong></td><td>Config rule → SSM Automation</td><td>Auto-remediate compliance violations within minutes at org scale</td></tr>
+<tr><td>16</td><td><strong>Immutable Audit Trail</strong></td><td>CloudTrail Org Trail + S3 Object Lock COMPLIANCE + CloudTrail Lake</td><td>Tamper-proof, queryable, 7-year audit logs across all accounts</td></tr>
+</tbody></table>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">🔒 Security Services — What Each One Actually Does</span></summary>
+<div class="pattern-body">
+<table><thead><tr><th>Service</th><th>What It Does</th><th>Does NOT Do</th></tr></thead><tbody>
+<tr><td><strong>Amazon GuardDuty</strong></td><td>Threat detection — analyzes CloudTrail, VPC Flow Logs, DNS logs for anomalous behavior (crypto mining, credential abuse, C2 traffic)</td><td>Does not block traffic. Does not fix IAM policies.</td></tr>
+<tr><td><strong>AWS Security Hub</strong></td><td>Aggregates findings from GuardDuty, Inspector, Macie, Config, Firewall Manager into one dashboard with compliance scores</td><td>Does not perform detection itself. Aggregates only.</td></tr>
+<tr><td><strong>Amazon Inspector</strong></td><td>CVE scanning for EC2 instances and ECR container images. Finds OS and package vulnerabilities.</td><td>Does not patch. Does not detect runtime threats.</td></tr>
+<tr><td><strong>Amazon Macie</strong></td><td>PII/PHI detection in S3 using ML. Finds sensitive data patterns (SSNs, credit cards, health records) in S3 objects.</td><td>Does not classify non-S3 data. Not for images (Rekognition does that).</td></tr>
+<tr><td><strong>AWS WAF</strong></td><td>Application-layer (L7) protection — blocks SQLi, XSS, known bad IPs, rate limiting. Integrates with ALB, API Gateway, CloudFront, AppSync.</td><td>Does not protect against volumetric DDoS (Layer 3/4). Shield does that.</td></tr>
+<tr><td><strong>AWS Shield Standard</strong></td><td>Automatic L3/L4 DDoS protection — included free with all AWS accounts</td><td>No application-layer protection. No cost-protection for DDoS-inflated bills.</td></tr>
+<tr><td><strong>AWS Shield Advanced</strong></td><td>Enhanced DDoS protection, cost protection, 24/7 DDoS response team (DRT), Global Accelerator and Route 53 protection</td><td>Not a WAF. Does not block SQLi. Does not replace WAF.</td></tr>
+<tr><td><strong>IAM Access Analyzer</strong></td><td>Finds resources shared outside your account/Org (S3, IAM roles, KMS keys, Lambda). Generates least-privilege policies from CloudTrail.</td><td>Does not detect runtime threats. Does not block access.</td></tr>
+<tr><td><strong>AWS Firewall Manager</strong></td><td>Centrally manages WAF rules, Shield Advanced, Security Groups, and Network Firewall policies across all accounts in an Org</td><td>Does not perform detection. Manages policies only.</td></tr>
+<tr><td><strong>Amazon Detective</strong></td><td>Investigates security findings by visualizing the graph of related activity (who called what API, from where, when). Forensic investigation tool.</td><td>Does not detect threats. Use GuardDuty for detection, Detective for investigation.</td></tr>
+</tbody></table>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">🌐 Networking — Which Service for Which Problem</span></summary>
+<div class="pattern-body">
+<table><thead><tr><th>Problem</th><th>Service</th><th>Key Note</th></tr></thead><tbody>
+<tr><td>Connect 1000s of VPCs at scale</td><td><strong>Transit Gateway</strong></td><td>Hub-and-spoke, transitive routing, shared DX, route tables for traffic control</td></tr>
+<tr><td>Private connectivity to AWS services from VPC</td><td><strong>VPC Interface Endpoints (PrivateLink)</strong></td><td>S3/DynamoDB: Gateway Endpoints (free). Others: Interface Endpoints (hourly + data fee)</td></tr>
+<tr><td>Expose your service to other VPCs/accounts privately</td><td><strong>AWS PrivateLink</strong></td><td>Service provider creates NLB + Endpoint Service. Consumer creates Interface Endpoint.</td></tr>
+<tr><td>Site-to-site encrypted VPN over internet</td><td><strong>AWS Site-to-Site VPN</strong></td><td>Up to 1.25 Gbps per tunnel. Two tunnels per VPN connection for HA.</td></tr>
+<tr><td>Client VPN (user-to-VPC)</td><td><strong>AWS Client VPN</strong></td><td>OpenVPN-based, scales to thousands of concurrent users</td></tr>
+<tr><td>Global anycast routing + DDoS resilience</td><td><strong>AWS Global Accelerator</strong></td><td>Static anycast IPs, routes over AWS backbone, endpoint weights for instant traffic shifting</td></tr>
+<tr><td>Content delivery + caching at edge</td><td><strong>Amazon CloudFront</strong></td><td>HTTP/HTTPS only, 400+ PoPs, WAF integration, Lambda@Edge</td></tr>
+<tr><td>DNS + health checks + routing policies</td><td><strong>Amazon Route 53</strong></td><td>Latency, geolocation, weighted, failover, multivalue routing policies</td></tr>
+<tr><td>DR routing control without DNS TTL delay</td><td><strong>Route 53 Application Recovery Controller (ARC)</strong></td><td>Routing controls = binary switches. Readiness checks validate DR readiness before switching.</td></tr>
+<tr><td>Dedicated private network to AWS</td><td><strong>AWS Direct Connect</strong></td><td>1Gbps or 10Gbps or 100Gbps dedicated circuits. HA = two connections from two DX locations.</td></tr>
+</tbody></table>
+</div>
+</details>
+
+<details class="pattern-card">
+<summary><span class="chevron">›</span><span class="summary-text">💾 Storage — S3, EFS, FSx, EBS — Which One When</span></summary>
+<div class="pattern-body">
+<table><thead><tr><th>Service</th><th>Protocol</th><th>Use When</th></tr></thead><tbody>
+<tr><td><strong>Amazon S3</strong></td><td>HTTP/S3 API</td><td>Object storage, any scale, data lakes, backups, static web hosting, archive. Unlimited capacity.</td></tr>
+<tr><td><strong>Amazon EBS</strong></td><td>Block (iSCSI)</td><td>EC2 boot volumes, low-latency block storage. Single EC2 attach (except io2 Block Express = multi-attach)</td></tr>
+<tr><td><strong>Amazon EFS</strong></td><td>NFS (Linux)</td><td>Shared file system across multiple EC2 Linux instances. Grows automatically. Multi-AZ.</td></tr>
+<tr><td><strong>FSx for Windows File Server</strong></td><td>SMB (Windows)</td><td>Windows-native file shares with Active Directory integration. Multi-AZ. DFS Namespace support.</td></tr>
+<tr><td><strong>FSx for Lustre</strong></td><td>Lustre (Linux)</td><td>High-performance computing, ML training, financial modeling. Integrates with S3 as backing store.</td></tr>
+<tr><td><strong>FSx for NetApp ONTAP</strong></td><td>NFS, SMB, iSCSI</td><td>Lift-and-shift NetApp workloads. Multi-protocol. Snapshots, replication, tiering to S3.</td></tr>
+<tr><td><strong>FSx for OpenZFS</strong></td><td>NFS</td><td>ZFS-based workloads, fast Linux file access with ZFS features (snapshots, clones)</td></tr>
+<tr><td><strong>Storage Gateway File GW</strong></td><td>NFS / SMB</td><td>On-premises apps access S3 via NFS/SMB. Caching layer. Legacy app compatibility.</td></tr>
+</tbody></table>
+</div>
+</details>
+
+</div>
+<div id="no-results">No patterns match your search. Try a different keyword.</div>
+
+</div><!-- .wrapper -->
+
+<button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.querySelector('.theme-btn').textContent = isDark ? '◐ Dark' : '◑ Light';
+}
+
+// Search
+document.getElementById('search').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  let visible = 0;
+  document.querySelectorAll('.pattern-card').forEach(function(card) {
+    const show = !q || card.textContent.toLowerCase().includes(q);
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.querySelectorAll('.domain-header').forEach(function(h) {
+    h.style.display = q ? 'none' : '';
+  });
+  document.getElementById('no-results').classList.toggle('show', visible === 0 && q.length > 0);
+});
+
+// Scroll-to-top
+const scrollBtn = document.getElementById('scroll-top');
+window.addEventListener('scroll', function() {
+  scrollBtn.classList.toggle('show', window.scrollY > 300);
+}, { passive: true });
+</script>
+</body>
+</html>
