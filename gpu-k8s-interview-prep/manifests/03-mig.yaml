@@ -1,0 +1,23 @@
+# MIG: hardware partitions (A100/A30/H100/H200/B200 families).
+#
+# 1) Choose strategy in the GPU Operator (Helm):  --set mig.strategy=mixed
+# 2) Ask MIG Manager to carve the GPU by labelling the node (node must be idle):
+#      kubectl label node <gpu-node> nvidia.com/mig.config=all-1g.10gb --overwrite
+#    Watch:  kubectl get node <gpu-node> -L nvidia.com/mig.config.state   (pending -> success)
+#
+# Mixed strategy exposes per-profile resources, e.g. nvidia.com/mig-1g.10gb
+apiVersion: v1
+kind: Pod
+metadata:
+  name: small-inference
+spec:
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+  containers:
+    - name: model
+      image: nvcr.io/nvidia/tritonserver:24.08-py3   # example tag; pin your own
+      resources:
+        limits:
+          nvidia.com/mig-1g.10gb: 1   # a 1/7th slice with its own memory + SMs

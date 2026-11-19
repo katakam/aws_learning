@@ -1,0 +1,60 @@
+# vLLM serving an OpenAI-compatible API on 1 GPU.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: vllm }
+  template:
+    metadata:
+      labels: { app: vllm }
+    spec:
+      terminationGracePeriodSeconds: 120      # >= longest generation you allow
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest      # pin a version in real life
+          args:
+            - --model=meta-llama/Llama-3.1-8B-Instruct
+            - --gpu-memory-utilization=0.90   # lower if you hit CUDA OOM
+            - --max-model-len=8192
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HF_HOME
+              value: /models/hf
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          # Model load can take minutes: startupProbe protects slow start, readiness gates traffic.
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+            failureThreshold: 90              # up to 15 min
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 5
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "10"] }   # let endpoints drain before SIGTERM
+          volumeMounts:
+            - { name: models, mountPath: /models }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: model-cache }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 16Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+spec:
+  selector: { app: vllm }
+  ports:
+    - port: 80
+      targetPort: 8000

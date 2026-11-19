@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: gpu-gateway
+  threads:
+    virtual:
+      enabled: true            # blocking RestClient scales on virtual threads (Java 21+)
+
+server:
+  port: 8080
+  shutdown: graceful           # finish in-flight requests on SIGTERM
+
+spring.lifecycle.timeout-per-shutdown-phase: 60s
+
+gateway:
+  backend:
+    base-url: ${GATEWAY_BACKEND_BASE_URL:http://localhost:8000}
+    max-concurrent: 8          # in-flight cap per replica ~= what the GPU can batch
+    acquire-timeout: 200ms     # wait this long for a slot, then shed load (429)
+    connect-timeout: 2s
+    read-timeout: 120s         # LLM generations are slow
+
+management:
+  server:
+    port: 8081                 # actuator on its own port
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true          # /actuator/health/liveness and /readiness
+      group:
+        readiness:
+          include: readinessState,backend   # backend down => not ready (never in liveness)

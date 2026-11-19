@@ -1,0 +1,44 @@
+# EKS + Karpenter v1: dedicated GPU pool for inference. Sketch — adapt names, role, subnets.
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: gpu-inference
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: gpu
+      taints:
+        - key: nvidia.com/gpu
+          value: present
+          effect: NoSchedule
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["g6e", "g5"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]          # add "spot" for fault-tolerant batch pools only
+  limits:
+    nvidia.com/gpu: 32                   # hard cap on fleet size = cost guardrail
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 10m
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: gpu
+spec:
+  role: KarpenterNodeRole-mycluster
+  amiSelectorTerms:
+    - alias: al2023@latest               # Karpenter picks the NVIDIA-accelerated AL2023 variant for GPU instance types
+  subnetSelectorTerms:
+    - tags: { karpenter.sh/discovery: mycluster }
+  securityGroupSelectorTerms:
+    - tags: { karpenter.sh/discovery: mycluster }
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs: { volumeSize: 300Gi, volumeType: gp3 }   # big images + model cache

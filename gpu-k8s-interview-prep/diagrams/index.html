@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>GPU on Kubernetes: animated diagrams</title>
+<link rel="stylesheet" href="assets/anim.css">
+<style>.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:16px}
+.card{display:block;border:1px solid var(--line);border-radius:10px;padding:16px;text-decoration:none;color:var(--ink);background:#fff}
+.card:hover{border-color:var(--blue);box-shadow:0 2px 10px rgba(26,92,191,.15)}
+.card h3{margin:0 0 6px;color:var(--blue)}.card p{margin:0;color:var(--muted);font-size:14px}</style></head>
+<body><div class="wrap"><h1>GPU on Kubernetes: animated diagrams</h1>
+<p class="sub">Open any page, press Play (or use ← → keys). Each step has an everyday analogy.</p>
+<div class="grid"><a class="card" href="01-gpu-scheduling-flow.html"><h3>From Pod YAML to GPU</h3><p>Device plugin, scheduler, kubelet, toolkit, driver</p></a><a class="card" href="02-gpu-sharing.html"><h3>GPU sharing</h3><p>Exclusive vs time-slicing vs MIG vs MPS</p></a><a class="card" href="03-gpu-operator-stack.html"><h3>GPU Operator stack</h3><p>What runs on a GPU node and in what order</p></a><a class="card" href="04-multinode-training.html"><h3>Multi-node training</h3><p>Gang scheduling (Kueue) and NCCL all-reduce</p></a><a class="card" href="05-springboot-request-lifecycle.html"><h3>Spring Boot lifecycle</h3><p>Startup sequence and request path</p></a><a class="card" href="06-springboot-gpu-gateway.html"><h3>Gateway + GPU autoscaling</h3><p>Bulkhead, KEDA on queue depth, Karpenter</p></a></div></div></body></html>

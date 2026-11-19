@@ -1,0 +1,70 @@
+# Kueue: queue + quota + all-or-nothing admission (gang) for GPU batch jobs.
+# Check the apiVersion against your installed Kueue release (v1beta1 shown).
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: h100
+spec:
+  nodeLabels:
+    nvidia.com/gpu.product: NVIDIA-H100-80GB-HBM3
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+spec:
+  namespaceSelector: {}
+  cohort: shared-gpu          # queues in a cohort can borrow idle quota from each other
+  resourceGroups:
+    - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+      flavors:
+        - name: h100
+          resources:
+            - name: cpu
+              nominalQuota: 256
+            - name: memory
+              nominalQuota: 2Ti
+            - name: nvidia.com/gpu
+              nominalQuota: 16
+              borrowingLimit: 8
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: team-a-lq
+  namespace: team-a
+spec:
+  clusterQueue: team-a-cq
+---
+# A job that needs 4 pods x 4 GPUs. Kueue admits it only if ALL 16 GPUs fit -> no half-started job.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: train-llm
+  namespace: team-a
+  labels:
+    kueue.x-k8s.io/queue-name: team-a-lq
+spec:
+  suspend: true               # Kueue un-suspends on admission
+  parallelism: 4
+  completions: 4
+  completionMode: Indexed
+  template:
+    spec:
+      restartPolicy: Never
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+      containers:
+        - name: trainer
+          image: example.registry/trainer:latest
+          resources:
+            limits:
+              nvidia.com/gpu: 4
+              cpu: "32"
+              memory: 256Gi
+          volumeMounts:
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 64Gi }

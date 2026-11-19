@@ -1,0 +1,31 @@
+# Basic GPU Pod: request by count, tolerate the GPU taint, pick a model by GFD label.
+# Taint your GPU nodes first:  kubectl taint nodes <n> nvidia.com/gpu=present:NoSchedule
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cuda-smoke-test
+spec:
+  restartPolicy: Never
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+  nodeSelector:
+    nvidia.com/gpu.product: NVIDIA-A100-SXM4-80GB   # label published by GPU Feature Discovery
+  containers:
+    - name: cuda
+      image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04   # pin to a CUDA your host driver supports
+      command: ["nvidia-smi"]
+      resources:
+        limits:
+          nvidia.com/gpu: 1        # integers only; request defaults to limit
+---
+# Per-namespace GPU quota (multi-tenant fairness)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gpu-quota
+  namespace: team-a
+spec:
+  hard:
+    requests.nvidia.com/gpu: "8"

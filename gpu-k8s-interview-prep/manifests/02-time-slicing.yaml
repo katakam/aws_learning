@@ -1,0 +1,26 @@
+# Time-slicing: 1 physical GPU advertised as 4 schedulable "replicas".
+# NO memory isolation, NO fault isolation. Dev / notebooks / light inference only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: time-slicing-config
+  namespace: gpu-operator
+data:
+  any: |-
+    version: v1
+    flags:
+      migStrategy: none
+    sharing:
+      timeSlicing:
+        renameByDefault: false          # true => advertised as nvidia.com/gpu.shared (explicit opt-in)
+        failRequestsGreaterThanOne: true  # a Pod asking for 2 replicas does NOT get 2x speed
+        resources:
+          - name: nvidia.com/gpu
+            replicas: 4
+---
+# Point the Operator's ClusterPolicy at the ConfigMap, then RESTART the device-plugin DaemonSet
+# (the operator does not watch the ConfigMap for changes):
+#
+# kubectl patch clusterpolicies.nvidia.com/cluster-policy -n gpu-operator --type merge \
+#   -p '{"spec":{"devicePlugin":{"config":{"name":"time-slicing-config","default":"any"}}}}'
+# kubectl rollout restart -n gpu-operator ds/nvidia-device-plugin-daemonset

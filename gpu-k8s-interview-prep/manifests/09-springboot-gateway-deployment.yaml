@@ -1,0 +1,56 @@
+# Spring Boot gateway in front of the GPU model servers.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-gateway
+spec:
+  replicas: 3
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: gpu-gateway }
+  template:
+    metadata:
+      labels: { app: gpu-gateway }
+    spec:
+      terminationGracePeriodSeconds: 90        # > spring.lifecycle.timeout-per-shutdown-phase
+      containers:
+        - name: app
+          image: example.registry/gpu-gateway:0.1.0
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: mgmt, containerPort: 8081 }   # actuator on a separate port
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=70"
+            - name: GATEWAY_BACKEND_BASE_URL
+              value: http://vllm.default.svc
+            - name: SERVER_SHUTDOWN
+              value: graceful
+            - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
+              value: 60s
+          resources:
+            requests: { cpu: "1", memory: 1Gi }
+            limits:   { memory: 1Gi }           # memory request == limit
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: mgmt }
+            periodSeconds: 3
+            failureThreshold: 30
+          livenessProbe:                         # process health only — NO downstream checks here
+            httpGet: { path: /actuator/health/liveness, port: mgmt }
+            periodSeconds: 10
+          readinessProbe:                        # includes backend reachability
+            httpGet: { path: /actuator/health/readiness, port: mgmt }
+            periodSeconds: 5
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "8"] }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gpu-gateway
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: { app: gpu-gateway }

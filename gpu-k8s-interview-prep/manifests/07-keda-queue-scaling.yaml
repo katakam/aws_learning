@@ -1,0 +1,18 @@
+# Autoscale vLLM on backlog (waiting requests), not on raw GPU utilisation.
+# Needs Prometheus scraping vLLM's /metrics. Metric name: vllm:num_requests_waiting
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: vllm-scaler
+spec:
+  scaleTargetRef:
+    name: vllm
+  minReplicaCount: 2          # warm floor: GPU cold starts are slow
+  maxReplicaCount: 8
+  cooldownPeriod: 300
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring.svc:9090
+        query: sum(vllm:num_requests_waiting)
+        threshold: "8"        # scale out when >8 requests wait per replica-equivalent
