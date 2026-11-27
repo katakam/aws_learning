@@ -16,7 +16,7 @@ Everyday-analogy explanations, interview Q&A, runnable-style manifests, a Spring
 
 ## Animated diagrams
 Open `diagrams/index.html` locally, or enable GitHub Pages (Settings → Pages → branch `main`, folder `/`) and visit `/diagrams/`.
-Controls: Play/Pause, Prev/Next, or ← → and Space. Deep link: `page.html#s=<scene>&t=<step>`.
+Each page opens with a "Why this matters" card and **spoken narration** (browser built-in voice; press Play with audio, choose voice and speed). Controls: Play/Pause, Prev/Next (speaks that step), or ← → and Space. Deep link: `page.html#s=<scene>&t=<step>`.
 
 1. From Pod YAML to GPU
 2. Sharing: exclusive / time-slicing / MIG / MPS

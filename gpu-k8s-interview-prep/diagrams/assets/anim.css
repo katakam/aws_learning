@@ -49,3 +49,10 @@ rect.hot{stroke-width:3.5;filter:drop-shadow(0 0 5px rgba(26,92,191,.45))}
 .pulse{animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.flow.hot,.pulse{animation:none}[data-s]{transition:none}}
+
+/* narration UI */
+.why{background:#E3F4EC;border-left:4px solid var(--green);border-radius:8px;padding:12px 14px;margin:0 0 10px;font-size:15px;line-height:1.55}
+.why b.wl{display:block;color:var(--green);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.opts{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0 0 6px;font-size:13px;color:var(--muted)}
+.opts select{font:400 13px 'Roboto',sans-serif;max-width:240px;padding:4px;border:1px solid var(--line);border-radius:6px;color:var(--navy);background:#fff}
+.hintline{font-size:13px;color:var(--muted);margin:2px 0 8px}

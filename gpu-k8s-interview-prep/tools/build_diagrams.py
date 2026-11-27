@@ -17,6 +17,24 @@ DEFS = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true">
         '<path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs></svg>')
 
 
+
+WHY = {
+ 'Pod → GPU': "What are we trying to understand? When you write one line in a YAML file asking for a GPU, what really happens behind the scenes? Kubernetes does not know what a GPU is. It only counts a number. So several small components cooperate: one announces the GPUs, one picks the machine, and one hands over the key. This is the most common question on any GPU platform interview. If you can walk through it calmly, it shows you understand the whole stack, not just one tool.",
+ 'Exclusive': "Why does this matter? Exclusive is the default mode, and it is simple and safe, but expensive. A GPU costs a lot of money, and if one job uses only a fifth of it, the rest sits idle. Interviewers love asking how you would raise GPU utilisation, and this is the starting point of that answer. First understand what is wasted, then look at the sharing options.",
+ 'Time-slicing': "Why does this matter? Time-slicing is the cheapest way to share a GPU, so teams reach for it first. But it has a hidden danger: there is no wall between the jobs. In an interview, the right answer is not 'it shares the GPU', the right answer is: good for dev and notebooks, never for tenants who do not trust each other.",
+ 'MIG': "Why does this matter? When you run a platform for external customers, you must promise that one customer cannot slow down or crash another. MIG gives hardware walls inside one GPU, so it is the answer for strong isolation. Be ready to also explain the cost: the slices are fixed, so some capacity can be stranded.",
+ 'MPS': "Why does this matter? MPS is the middle path: jobs really run at the same time, so throughput is better than time-slicing, but the isolation is weaker than MIG. Knowing all four options, and when to use each, is what separates a platform owner from someone who only used GPUs.",
+ 'Operator stack': "What are we trying to do here? A GPU node needs many things installed in the right order: driver, toolkit, plugin, labels, monitoring. Doing that by hand on hundreds of nodes, after every kernel upgrade, is a nightmare. The GPU Operator automates it. In an interview this shows you think about operating at scale, not just installing once.",
+ 'Without gang': "Why does this matter? Training jobs are not like web servers. All the workers must run together, or none can make progress. If the scheduler places only some of them, they hold expensive GPUs and wait forever. This is a classic way platforms waste money, and a very common interview scenario.",
+ 'With Kueue (gang)': "The fix is all or nothing admission. Kueue keeps the job in a queue until every worker can start together, and it also gives each team a fair share of GPUs. For a director level interview, this is your fairness and utilisation story: how many teams share a scarce fleet without fighting.",
+ 'All-reduce': "Why does this matter? In multi-node training, the network is as important as the GPUs. If the fast fabric is misconfigured, the job silently falls back to slow networking, and you pay for GPUs that wait. When you can explain this simply, you show you understand why GPU platforms are really network and scheduling problems.",
+ 'Request': "What are we trying to do? Follow one request through a Spring Boot service, step by step, so you can explain where security, validation, limits and timeouts belong. At the end the call goes to a GPU model server, which is slow and expensive, so the service must protect it. Interviewers use this to check whether you can review a design, not just write code.",
+ 'Startup': "Why does this matter? Many Spring Boot problems come from not knowing what the framework does at startup. Knowing the sequence, and that your own bean always wins over the default, lets you debug surprises quickly and review other people's code with confidence.",
+ 'Gateway to GPU': "What are we trying to do? Put a protective front desk in front of the expensive GPU kitchen. It limits how many orders go in, says come back later when it is full, and the platform adds more kitchens when the queue grows. This single picture answers many questions: resilience, autoscaling, cost, and how Spring Boot, Kubernetes and GPUs fit together.",
+ 'Platform layers': "What are we trying to do? This is the picture to draw on the whiteboard when they say, describe the platform you would lead. Each layer has an owner, a service level, and a failure mode. As a director, your value is in how these layers, and the teams behind them, work together, along with security, operations and cost.",
+ 'Kafka': "Why does this matter? The role mentions Kafka for event driven integration. Interviewers want to hear that you understand ordering, duplicates, lag and failure handling, not just that Kafka is a message queue. Explain these four ideas simply, and you will sound like someone who has run it in production.",
+}
+
 # ---------- helpers ----------
 def _attrs(s=None, a=None):
     return (f' data-s="{s}"' if s is not None else ''), (f' data-a="{a}"' if a is not None else '')
@@ -55,7 +73,9 @@ def label(x, y, text, cls='sm', anchor='middle', s=None, color=None):
 def scene(title, h, body, caps):
     lis = ''.join(
         f'<li>{c[0]}' + (f'<span class="an">🛺 {c[1]}</span>' if len(c) > 1 and c[1] else '') + '</li>' for c in caps)
-    return (f'<section class="scene" data-title="{title}"><div class="stage">'
+    w = WHY.get(title, '')
+    whyhtml = (f'<div class="why"><b class="wl">Why this matters</b><span class="wt">{w}</span></div>' if w else '')
+    return (f'<section class="scene" data-title="{title}">{whyhtml}<div class="stage">'
             f'<svg viewBox="0 0 960 {h}" role="img" aria-label="{title}">{body}</svg></div>'
             f'<ol class="caps">{lis}</ol></section>')
 
@@ -72,10 +92,14 @@ def page(fname, title, sub, no, is_, scenes):
 {DEFS}
 <div class="tabs"></div>
 {''.join(scenes)}
-<div class="ctrl"><button class="btn" id="prev">◀ Prev</button><button class="btn pri" id="play">▶ Play</button>
+<div class="opts"><label><input type="checkbox" id="nar" checked> 🔊 Narration</label>
+<label>Speed <select id="spd"><option value="0.85">Slow</option><option value="0.95" selected>Normal</option><option value="1.1">Fast</option></select></label>
+<label>Voice <select id="voice"></select></label></div>
+<p class="hintline">Press <b>Play (with audio)</b> for a narrated walkthrough. Browsers only speak after a click. Pick a voice you like (an Indian or British English one works well).</p>
+<div class="ctrl"><button class="btn" id="prev">◀ Prev</button><button class="btn pri" id="play">▶ Play (with audio)</button>
 <button class="btn" id="next">Next ▶</button><button class="btn" id="reset">↺ Reset</button><span id="pos"></span></div>
 <div class="bar"><i></i></div>
-<p class="sub" style="margin-top:14px">Keys: ← → step · Space play/pause.</p>
+<p class="sub" style="margin-top:14px">Keys: ← → step (speaks that step) · Space play/pause.</p>
 </div><script src="assets/anim.js"></script></body></html>'''
     (OUT / fname).write_text(html, encoding='utf-8')
     print('wrote', fname)
