@@ -9,6 +9,7 @@ Everyday-analogy explanations, interview Q&A, runnable-style manifests, a Spring
 | 38 Q&A + 3 system-design walkthroughs + questions to ask them | [docs/02-interview-qa.md](docs/02-interview-qa.md) |
 | Spring Boot (Boot 4 era) notes + 20 Q&A + GPU-gateway patterns | [docs/03-spring-boot.md](docs/03-spring-boot.md) |
 | One-page revision sheet | [docs/04-cheatsheet.md](docs/04-cheatsheet.md) |
+| Director / Associate Director (platform engineering) interview: leadership, delivery, architecture, Kafka, SPA, ops, scenarios, 90 days | [docs/05-director-platform-engineering-interview.md](docs/05-director-platform-engineering-interview.md) |
 | Animated diagrams (open `diagrams/index.html` in a browser) | [diagrams/](diagrams/index.html) |
 | YAML you can adapt (pod, time-slicing, MIG, Kueue, DRA, vLLM, KEDA, Karpenter, Spring gateway) | [manifests/](manifests/) |
 | Spring Boot gateway sample (bulkhead, timeouts, SSE, Micrometer) | [springboot-gpu-gateway/](springboot-gpu-gateway/) |
@@ -23,6 +24,8 @@ Controls: Play/Pause, Prev/Next, or ← → and Space. Deep link: `page.html#s=<
 4. Multi-node training: gang scheduling + all-reduce
 5. Spring Boot startup + request lifecycle
 6. Spring Boot gateway + GPU autoscaling (bulkhead, KEDA, Karpenter)
+7. Private-cloud GPU/AI platform layers
+8. Kafka: partitions, consumer groups, lag, DLQ, outbox
 
 Regenerate: `python3 tools/build_diagrams.py`
 

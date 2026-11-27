@@ -522,6 +522,91 @@ def d06():
          [scene('Gateway to GPU', 470, b, caps)])
 
 
+
+# ======================================================================
+# 07  AI platform on private cloud (layers + tenant request)
+# ======================================================================
+def d07():
+    b = ''
+    layers = [
+        (60,  'b', 'Experience', 'SPA portal · APIs · CLI · self-service', 1),
+        (120, 'g', 'Platform services (Java / Spring Boot)', 'tenant · quota · catalogue · orchestrator · metering · inference gateway', 2),
+        (180, 'p', 'Event backbone (Kafka)', 'lifecycle events · usage metering · audit', 3),
+        (240, 'n', 'Kubernetes + GPU layer', 'Operator · MIG/DRA · Kueue · DCGM · vLLM/Triton', 4),
+        (300, 'a', 'Cloud foundation', 'bare-metal provisioning · identity · network · storage · secrets', 5),
+        (360, 'n', 'Infrastructure', 'GPU servers · RoCE / InfiniBand · storage · DC power & cooling', 6),
+    ]
+    for y, c, t, sub, st in layers:
+        b += box(200, y, 560, 48, c, t, sub, s=st, a=st)
+    b += box(20, 60, 140, 48, 'n', 'Tenant', 'enterprise user', a=1)
+    b += box(800, 120, 140, 48, 'r', 'Security', 'IAM · audit · CVEs', s=7, a=7)
+    b += box(800, 240, 140, 48, 'g', 'SRE / Ops', 'SLOs · on-call', s=7, a=7)
+    b += box(800, 360, 140, 48, 'a', 'FinOps', 'cost per tenant', s=7, a=7)
+    b += flow('M160,84 L200,84', 1, 'b')
+    b += flow('M480,108 L480,120', 2, 'g')
+    b += flow('M480,168 L480,180', 3, 'p')
+    b += flow('M480,228 L480,240', 4)
+    b += flow('M480,288 L480,300', 5, 'a')
+    b += flow('M480,348 L480,360', 6)
+    b += flow('M800,144 L760,144', 7, 'r')
+    b += flow('M800,264 L760,264', 7, 'g')
+    b += flow('M800,384 L760,384', 7, 'a')
+    caps = [('A private-cloud GPU/AI platform, top to bottom. Each layer has an owner and an SLO.',
+             'Shopping mall: shopfront (portal), management office (services), intercom (Kafka), plumbing (K8s/GPU), foundations, land.'),
+            ('<b>Experience:</b> tenants self-serve through a portal, APIs and CLI (SPA frontend, contract-first APIs).',),
+            ('<b>Platform services</b> (Java/Spring Boot): tenants, quotas, catalogue, provisioning orchestration, metering, inference gateway. This is where your teams build.',),
+            ('<b>Kafka</b> carries lifecycle, usage and audit events so services stay decoupled and billing can replay.',),
+            ('<b>Kubernetes + GPU layer:</b> Operator, MIG or DRA, Kueue for fair share, DCGM for health and cost, model servers.',),
+            ('<b>Cloud foundation:</b> bare-metal provisioning, identity, networking, storage, secrets.',),
+            ('<b>Infrastructure:</b> GPU servers on a fast fabric. Capacity is scarce and has long lead times.',),
+            ('<b>Cross-cutting:</b> security (isolation, audit, CVEs), SRE (SLOs, incidents), FinOps (cost per tenant). A director owns how these three meet delivery.',)]
+    page('07-ai-platform-private-cloud.html', 'Private-cloud GPU/AI platform: the layers',
+         'What you would lead, and where the risks sit',
+         'A pile of GPU servers with a Kubernetes cluster on top.',
+         'A product: self-service experience, platform services, event backbone, GPU layer and foundation, run to SLOs and billed per tenant.',
+         [scene('Platform layers', 470, b, caps)])
+
+
+# ======================================================================
+# 08  Kafka event flow
+# ======================================================================
+def d08():
+    b = ''
+    b += box(20, 150, 130, 56, 'g', 'Producer', 'key = tenantId', a='1 2')
+    b += frame(190, 60, 330, 250, 'Topic: gpu.usage (3 partitions)')
+    for i, y in enumerate((100, 170, 240)):
+        b += box(210, y, 290, 50, 'b', f'Partition {i}', 'offset 0 … N', a=f'2 {4 if i == 2 else 99}')
+    b += frame(580, 60, 360, 250, 'Consumer group: billing')
+    b += box(600, 100, 150, 50, 'p', 'Consumer 1', 'P0', s=3, a=3)
+    b += box(600, 170, 150, 50, 'p', 'Consumer 2', 'P1', s=3, a=3)
+    b += box(600, 240, 150, 50, 'p', 'Consumer 3', 'P2', s=3, a=3)
+    b += box(770, 100, 150, 50, 'g', 'Idempotent', 'dedupe by event id', s=5, a=5)
+    b += box(770, 240, 150, 50, 'r', 'Dead-letter topic', 'after N retries', s=6, a=6)
+    b += box(190, 340, 330, 44, 'a', 'Consumer lag = latest offset - committed', None, s=4, a=4)
+    b += box(580, 340, 360, 44, 'n', 'Outbox: DB row + event in one transaction', 'relay publishes to Kafka', s=7, a=7)
+    b += flow('M150,170 L190,125', 2, 'g')
+    b += flow('M150,180 L190,195', 2, 'g')
+    b += flow('M150,190 L190,265', 2, 'g')
+    b += flow('M500,125 L600,125', 3, 'p')
+    b += flow('M500,195 L600,195', 3, 'p')
+    b += flow('M500,265 L600,265', 3, 'p')
+    b += flow('M750,125 L770,125', 5, 'g')
+    b += flow('M750,265 L770,265', 6, 'r')
+    caps = [('Kafka in one picture: a topic split into partitions, read by a consumer group.',
+             'Railway: line = topic, track = partition, porters = consumers, offset = how far each porter has unloaded.'),
+            ('The producer chooses the partition from the <b>key</b> (here the tenant). Same key, same partition, same order.',),
+            ('Events are appended to partitions. <b>Order is guaranteed only inside a partition.</b>',),
+            ('Each partition is read by exactly one consumer in the group. More consumers than partitions sit idle.',),
+            ('If consumers fall behind, <b>lag</b> grows. Check slow handlers, hot partitions, downstream timeouts.',),
+            ('Delivery is at-least-once in practice, so handlers must be <b>idempotent</b> (dedupe by event id).',),
+            ('Poison messages go to a <b>dead-letter topic</b> after bounded retries, with an alert and a replay tool.',),
+            ('To avoid "DB saved, Kafka failed", write the event to an <b>outbox</b> table in the same transaction and let a relay publish it.',)]
+    page('08-kafka-event-flow.html', 'Kafka: partitions, consumer groups, lag, DLQ, outbox',
+         'The ideas a director must be able to explain simply',
+         'A faster message queue where ordering and delivery are automatic.',
+         'A partitioned, replicated log: ordering per partition, consumers track offsets, and you design for duplicates and failures.',
+         [scene('Kafka', 420, b, caps)])
+
 # ======================================================================
 def index():
     cards = [
@@ -531,6 +616,8 @@ def index():
         ('04-multinode-training.html', 'Multi-node training', 'Gang scheduling (Kueue) and NCCL all-reduce'),
         ('05-springboot-request-lifecycle.html', 'Spring Boot lifecycle', 'Startup sequence and request path'),
         ('06-springboot-gpu-gateway.html', 'Gateway + GPU autoscaling', 'Bulkhead, KEDA on queue depth, Karpenter'),
+        ('07-ai-platform-private-cloud.html', 'AI platform layers', 'Private-cloud GPU/AI platform, top to bottom'),
+        ('08-kafka-event-flow.html', 'Kafka event flow', 'Partitions, consumer groups, lag, DLQ, outbox'),
     ]
     items = ''.join(
         f'<a class="card" href="{h}"><h3>{t}</h3><p>{d}</p></a>' for h, t, d in cards)
@@ -550,4 +637,4 @@ def index():
 
 if __name__ == '__main__':
     OUT.mkdir(exist_ok=True)
-    d01(); d02(); d03(); d04(); d05(); d06(); index()
+    d01(); d02(); d03(); d04(); d05(); d06(); d07(); d08(); index()
