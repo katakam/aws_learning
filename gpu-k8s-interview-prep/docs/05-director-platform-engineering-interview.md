@@ -23,6 +23,8 @@ Structure: *scope → how you lead → what you deliver → why this platform.*
 
 ## 2. Leadership and people (most likely, high weight)
 
+> For the full live question set with answer shapes and samples, see [06-leadership-management-questions.md](06-leadership-management-questions.md).
+
 **Q1. How do you lead through team leads?**
 Set clear outcomes and guardrails, let leads own the how. Weekly 1:1s with leads, monthly skip-levels, shared dashboards (delivery, quality, incidents). I coach leads to make decisions and escalate early, not to ask permission. *Analogy:* head chef sets quality and timing; sous-chefs run their stations.
 
