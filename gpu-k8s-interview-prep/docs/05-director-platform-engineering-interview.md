@@ -205,13 +205,29 @@ Clear SLAs, roadmaps and escalation paths, avoid single-vendor lock-in where pra
 
 ---
 
-## 12. First 90 days
+## 12. Short on time? Top 15 + 3-day plan
 
-- **30 days:** listen. Meet leads, stakeholders, customers; read architecture, incidents, roadmap; map ownership; pick 2-3 visible quick wins.
-- **60 days:** baseline metrics (DORA, SLOs, utilisation, attrition), agree priorities and standards with leads, fix the worst operational pain.
-- **90 days:** publish roadmap and engineering principles, start the leadership development plan, show first measurable improvements.
+**Most likely questions (in this order):**
+1. Tell me about yourself and why this role. (Q in section 1)
+2. How have you led teams, and through whom? (Q1, plus the honest-gap note)
+3. An underperforming lead or a conflict between leads. (Q2, Q5)
+4. A milestone is slipping. (Q10)
+5. A major incident you led and the RCA. (Q41)
+6. Sketch the GPU/AI platform. (Q15, diagram 07)
+7. Multi-tenancy and isolation. (Q16)
+8. GPU utilisation, capacity and cost. (Q34, scenario 2)
+9. Kafka: duplicates, lag, dead letters, outbox. (Q25-27, diagram 08)
+10. Spring Boot design-review checklist. (Q21)
+11. Release management, quality, CI/CD. (Q12, Q46)
+12. Pushback from product, ops or security. (Q47, Q49)
+13. Security and compliance in a sovereign/regulated platform. (Q45)
+14. Build vs buy. (Q17)
+15. What would you do first in this role? (answer: listen, baseline metrics, fix the worst operational pain, agree priorities with leads)
 
----
+**3-day plan (about 2 hours a day):**
+- **Day 1: your stories.** Write the opener (60 seconds). Prepare 4 STAR stories: leading across teams, an incident with RCA, a standard you got adopted, a hard people or stakeholder moment. Practise Q1-Q5 aloud.
+- **Day 2: the platform.** Draw the layers (diagram 07) from memory in 2 minutes. Rehearse Q15-Q20 (design, multi-tenancy, GPU utilisation, metering), then Kafka and the Spring Boot checklist.
+- **Day 3: mock and polish.** Do a full 30-minute mock aloud (record it). Tighten answers to 90 seconds each. Prepare 4 questions to ask them. Read the one-page cheatsheet and sleep.
 
 ## 13. Your story bank (prepare 6 STAR stories)
 
