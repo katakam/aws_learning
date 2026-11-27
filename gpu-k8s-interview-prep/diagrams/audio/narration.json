@@ -1,0 +1,366 @@
+{
+ "01-gpu-scheduling-flow": [
+  [
+   [
+    "Why this matters. What are we trying to understand? When you write one line in a YAML file asking for a GPU, what really happens behind the scenes? Kubernetes does not know what a GPU is. It only counts a number. So several small components cooperate: one announces the GPUs, one picks the machine, and one hands over the key. This is the most common question on any GPU platform interview. If you can walk through it calmly, it shows you understand the whole stack, not just one tool.",
+    "A Pod asks for a GPU by count. Follow it from YAML to silicon.",
+    "Think of it like this. Booking \"1 taxi\", not \"taxi number 7\"."
+   ],
+   [
+    "Node boot: the device plugin registers nvidia.com/gpu with kubelet and streams 4 healthy GPUs (ListAndWatch). kubelet reports capacity to the API server.",
+    "Think of it like this. Dispatcher tells the control room: \"4 taxis at this depot\"."
+   ],
+   [
+    "You submit a Pod with limits: nvidia.com/gpu: 1.",
+    "Think of it like this. Passenger asks for one taxi."
+   ],
+   [
+    "Scheduler filter: NodeResourcesFit needs allocatable GPU ≥ 1. Taints, nodeSelector and quota are checked too.",
+    "Think of it like this. Control room looks for a depot with a free taxi."
+   ],
+   [
+    "Bind: the Pod is assigned to this node and kubelet receives it."
+   ],
+   [
+    "kubelet calls Allocate(). The plugin picks GPU 2 and returns its UUID (or a CDI device name).",
+    "Think of it like this. Dispatcher hands over the key of one specific taxi."
+   ],
+   [
+    "kubelet asks containerd to start the container. The NVIDIA toolkit mounts /dev/nvidia2, /dev/nvidiactl and the host driver libraries."
+   ],
+   [
+    "Container runs. nvidia-smi shows only GPU 2; CUDA calls go to the host driver. Driver on host, CUDA toolkit in the image.",
+    "Think of it like this. Passenger sees only their taxi, not the whole depot."
+   ]
+  ]
+ ],
+ "02-gpu-sharing": [
+  [
+   [
+    "Why this matters. Why does this matter? Exclusive is the default mode, and it is simple and safe, but expensive. A GPU costs a lot of money, and if one job uses only a fifth of it, the rest sits idle. Interviewers love asking how you would raise GPU utilisation, and this is the starting point of that answer. First understand what is wasted, then look at the sharing options.",
+    "Default mode: one GPU = one Pod. Whole bungalow, one family."
+   ],
+   [
+    "Pod A gets the full GPU. Safe, full isolation, best for training and big models."
+   ],
+   [
+    "Pods B and C stay Pending (Insufficient nvidia.com/gpu): extended resources are integers and never overcommitted."
+   ],
+   [
+    "If A only uses ~20 %, the rest is wasted. That is why sharing exists."
+   ]
+  ],
+  [
+   [
+    "Why this matters. Why does this matter? Time-slicing is the cheapest way to share a GPU, so teams reach for it first. But it has a hidden danger: there is no wall between the jobs. In an interview, the right answer is not 'it shares the GPU', the right answer is: good for dev and notebooks, never for tenants who do not trust each other.",
+    "Time-slicing: the GPU is shared by turns.",
+    "Think of it like this. One auto-rickshaw, passengers take turns."
+   ],
+   [
+    "Config says replicas: 4, so the plugin advertises 4 \"GPUs\" for 1 physical device."
+   ],
+   [
+    "Three Pods each get a replica. Replicas are scheduling slots, not extra capacity."
+   ],
+   [
+    "The GPU runs Pod A for a slice…"
+   ],
+   [
+    "…then Pod B…"
+   ],
+   [
+    "…then Pod C. Context-switch overhead each time."
+   ],
+   [
+    "No memory or fault isolation. One greedy Pod can hurt the others. Use for dev, notebooks, light inference, never for untrusted tenants."
+   ]
+  ],
+  [
+   [
+    "Why this matters. Why does this matter? When you run a platform for external customers, you must promise that one customer cannot slow down or crash another. MIG gives hardware walls inside one GPU, so it is the answer for strong isolation. Be ready to also explain the cost: the slices are fixed, so some capacity can be stranded.",
+    "MIG cuts one GPU into hardware-isolated instances (A100/A30/H100/H200/B200 families).",
+    "Think of it like this. Separate flats in one building: own walls, own meter."
+   ],
+   [
+    "Ask for a layout by labelling the node. The GPU must be idle."
+   ],
+   [
+    "MIG Manager carves the GPU. Each slice gets dedicated memory, cache and SMs."
+   ],
+   [
+    "The device plugin advertises per-profile resources such as nvidia.com/mig-1g.10gb (mixed strategy)."
+   ],
+   [
+    "Pods request a slice and land on it. Predictable latency, strong isolation."
+   ],
+   [
+    "A Pod that overruns its slice OOMs only inside its own slice. Neighbours are untouched. Downside: static geometry, stranded capacity."
+   ]
+  ],
+  [
+   [
+    "Why this matters. Why does this matter? MPS is the middle path: jobs really run at the same time, so throughput is better than time-slicing, but the isolation is weaker than MIG. Knowing all four options, and when to use each, is what separates a platform owner from someone who only used GPUs.",
+    "MPS lets several processes share the GPU concurrently.",
+    "Think of it like this. One shared kitchen: several cooks work at once."
+   ],
+   [
+    "The MPS control daemon starts a server that owns the GPU context."
+   ],
+   [
+    "Client processes connect to the server instead of the GPU directly."
+   ],
+   [
+    "Kernels from different processes overlap in time: better throughput for many small kernels than time-slicing."
+   ],
+   [
+    "Limits: active-thread percentage and pinned-memory caps per client. Isolation is weaker than MIG (a fault can affect other clients)."
+   ]
+  ]
+ ],
+ "03-gpu-operator-stack": [
+  [
+   [
+    "Why this matters. What are we trying to do here? A GPU node needs many things installed in the right order: driver, toolkit, plugin, labels, monitoring. Doing that by hand on hundreds of nodes, after every kernel upgrade, is a nightmare. The GPU Operator automates it. In an interview this shows you think about operating at scale, not just installing once.",
+    "One Helm install, one ClusterPolicy. The Operator then runs everything a GPU node needs.",
+    "Think of it like this. Society maintenance office: one contract covers electrician, plumber and guard for every flat."
+   ],
+   [
+    "NFD detects the NVIDIA PCI device and labels the node, so GPU operands only run where GPUs exist."
+   ],
+   [
+    "Driver (skip it if the AMI already ships one, e.g. EKS accelerated AMI)."
+   ],
+   [
+    "Container toolkit configures containerd and CDI so containers can be given device files."
+   ],
+   [
+    "Device plugin registers nvidia.com/gpu with kubelet. The validator gates it until driver and toolkit pass."
+   ],
+   [
+    "GFD publishes labels such as nvidia.com/gpu.product for scheduling by model."
+   ],
+   [
+    "DCGM Exporter exposes utilisation, memory, power and XID errors to Prometheus."
+   ],
+   [
+    "MIG Manager (optional) applies MIG layouts when you label the node. Gotcha: editing the time-slicing ConfigMap needs a device-plugin restart."
+   ]
+  ]
+ ],
+ "04-multinode-training": [
+  [
+   [
+    "Why this matters. Why does this matter? Training jobs are not like web servers. All the workers must run together, or none can make progress. If the scheduler places only some of them, they hold expensive GPUs and wait forever. This is a classic way platforms waste money, and a very common interview scenario.",
+    "Without gang scheduling the default scheduler places Pods one by one.",
+    "Think of it like this. Wedding party: some guests are seated, the rest have no chairs."
+   ],
+   [
+    "Cluster state: 8 GPUs, 3 busy, only 5 free. The job needs 8."
+   ],
+   [
+    "Five workers get placed immediately and start holding GPUs."
+   ],
+   [
+    "Three workers stay Pending."
+   ],
+   [
+    "The job cannot start (collectives need every rank) yet 5 GPUs are locked. Waste and starvation for others."
+   ]
+  ],
+  [
+   [
+    "Why this matters. The fix is all or nothing admission. Kueue keeps the job in a queue until every worker can start together, and it also gives each team a fair share of GPUs. For a director level interview, this is your fairness and utilisation story: how many teams share a scarce fleet without fighting.",
+    "With Kueue the whole job is one Workload, admitted all-or-nothing.",
+    "Think of it like this. Book the whole wedding hall or none of it."
+   ],
+   [
+    "Same cluster: 3 busy, 5 free. Job needs 8."
+   ],
+   [
+    "Not enough quota or capacity → the Workload stays queued. No Pods hold GPUs; other teams can use the 5 free ones."
+   ],
+   [
+    "Three busy GPUs finish and free up. Now 8 are available."
+   ],
+   [
+    "Kueue admits the Workload; all 8 Pods start together. No partial placement, no deadlock."
+   ]
+  ],
+  [
+   [
+    "Why this matters. Why does this matter? In multi-node training, the network is as important as the GPUs. If the fast fabric is misconfigured, the job silently falls back to slow networking, and you pay for GPUs that wait. When you can explain this simply, you show you understand why GPU platforms are really network and scheduling problems.",
+    "Data-parallel training: every GPU computes gradients, then NCCL averages them (all-reduce).",
+    "Think of it like this. Four friends each add a column of a bill, then pass the partial sums around until all know the total."
+   ],
+   [
+    "Forward + backward: each GPU has its own local gradients."
+   ],
+   [
+    "Reduce inside a node first over NVLink (fast, 100s of GB/s)."
+   ],
+   [
+    "Then across nodes over EFA / InfiniBand with GPUDirect RDMA (NIC reads GPU memory directly)."
+   ],
+   [
+    "Every GPU now holds the same averaged gradients; next step begins."
+   ],
+   [
+    "If the fabric is misconfigured (wrong NIC, no EFA, cross-AZ) NCCL silently drops to TCP. Debug with NCCL_DEBUG=INFO."
+   ]
+  ]
+ ],
+ "05-springboot-request-lifecycle": [
+  [
+   [
+    "Why this matters. What are we trying to do? Follow one request through a Spring Boot service, step by step, so you can explain where security, validation, limits and timeouts belong. At the end the call goes to a GPU model server, which is slow and expensive, so the service must protect it. Interviewers use this to check whether you can review a design, not just write code.",
+    "Request lifecycle in Spring MVC, with a GPU backend at the end.",
+    "Think of it like this. Courier path: gate → security desk → reception → right department → warehouse → back."
+   ],
+   [
+    "Client sends POST /v1/chat/completions."
+   ],
+   [
+    "Tomcat parses HTTP and assigns a thread (a virtual thread when spring.threads.virtual.enabled=true)."
+   ],
+   [
+    "Filter chain (servlet level): Spring Security validates the JWT, logging and tracing add context."
+   ],
+   [
+    "DispatcherServlet finds the handler; interceptors run preHandle."
+   ],
+   [
+    "Controller: Jackson binds JSON to the argument; validation runs."
+   ],
+   [
+    "Bulkhead takes a slot. No slot within 200 ms → 429 + Retry-After instead of piling onto the GPU."
+   ],
+   [
+    "RestClient calls the model server with explicit connect/read timeouts."
+   ],
+   [
+    "Response flows back: message converter writes JSON, the slot is released in finally, latency is recorded."
+   ]
+  ],
+  [
+   [
+    "Why this matters. Why does this matter? Many Spring Boot problems come from not knowing what the framework does at startup. Knowing the sequence, and that your own bean always wins over the default, lets you debug surprises quickly and review other people's code with confidence.",
+    "What happens between java -jar and \"ready\".",
+    "Think of it like this. Maggi masala packet: the framework adds the default spices unless you brought your own."
+   ],
+   [
+    "SpringApplication.run() begins."
+   ],
+   [
+    "Environment is built: application.yml, env vars, command line, profiles."
+   ],
+   [
+    "An ApplicationContext is created (servlet or reactive, decided by the classpath)."
+   ],
+   [
+    "Component scan finds your beans; auto-configuration classes listed in AutoConfiguration.imports are considered."
+   ],
+   [
+    "Each auto-config is guarded by conditions. Your own bean wins because of @ConditionalOnMissingBean."
+   ],
+   [
+    "Singletons are created, dependencies injected, @PostConstruct runs."
+   ],
+   [
+    "Embedded Tomcat starts and binds the port(s)."
+   ],
+   [
+    "Runners execute, ApplicationReadyEvent fires, readiness turns ACCEPTING_TRAFFIC."
+   ]
+  ]
+ ],
+ "06-springboot-gpu-gateway": [
+  [
+   [
+    "Why this matters. What are we trying to do? Put a protective front desk in front of the expensive GPU kitchen. It limits how many orders go in, says come back later when it is full, and the platform adds more kitchens when the queue grows. This single picture answers many questions: resilience, autoscaling, cost, and how Spring Boot, Kubernetes and GPUs fit together.",
+    "Spring Boot gateway in front of vLLM, and how the platform scales under load.",
+    "Think of it like this. Reception desk (gateway) in front of a busy kitchen (GPU): limit the orders in, grow the kitchen when the queue builds."
+   ],
+   [
+    "Clients reach the gateway through the ingress."
+   ],
+   [
+    "Each gateway replica caps in-flight calls (bulkhead). Over the cap → 429 + Retry-After instead of overloading the GPU."
+   ],
+   [
+    "Admitted requests are forwarded to the vLLM Service on GPU nodes."
+   ],
+   [
+    "Demand rises: vLLM's waiting queue grows. This is the right scaling signal, not raw GPU utilisation."
+   ],
+   [
+    "KEDA reads the queue from Prometheus and raises vLLM replicas 2 → 4."
+   ],
+   [
+    "New Pods are Pending (no free GPUs) so Karpenter launches a GPU node. Image pull and model load take minutes, so keep a warm floor."
+   ],
+   [
+    "New replicas pass their startupProbe and readinessProbe, the queue drains, and the 429s stop."
+   ]
+  ]
+ ],
+ "07-ai-platform-private-cloud": [
+  [
+   [
+    "Why this matters. What are we trying to do? This is the picture to draw on the whiteboard when they say, describe the platform you would lead. Each layer has an owner, a service level, and a failure mode. As a director, your value is in how these layers, and the teams behind them, work together, along with security, operations and cost.",
+    "A private-cloud GPU/AI platform, top to bottom. Each layer has an owner and an SLO.",
+    "Think of it like this. Shopping mall: shopfront (portal), management office (services), intercom (Kafka), plumbing (K8s/GPU), foundations, land."
+   ],
+   [
+    "Experience: tenants self-serve through a portal, APIs and CLI (SPA frontend, contract-first APIs)."
+   ],
+   [
+    "Platform services (Java/Spring Boot): tenants, quotas, catalogue, provisioning orchestration, metering, inference gateway. This is where your teams build."
+   ],
+   [
+    "Kafka carries lifecycle, usage and audit events so services stay decoupled and billing can replay."
+   ],
+   [
+    "Kubernetes + GPU layer: Operator, MIG or DRA, Kueue for fair share, DCGM for health and cost, model servers."
+   ],
+   [
+    "Cloud foundation: bare-metal provisioning, identity, networking, storage, secrets."
+   ],
+   [
+    "Infrastructure: GPU servers on a fast fabric. Capacity is scarce and has long lead times."
+   ],
+   [
+    "Cross-cutting: security (isolation, audit, CVEs), SRE (SLOs, incidents), FinOps (cost per tenant). A director owns how these three meet delivery."
+   ]
+  ]
+ ],
+ "08-kafka-event-flow": [
+  [
+   [
+    "Why this matters. Why does this matter? The role mentions Kafka for event driven integration. Interviewers want to hear that you understand ordering, duplicates, lag and failure handling, not just that Kafka is a message queue. Explain these four ideas simply, and you will sound like someone who has run it in production.",
+    "Kafka in one picture: a topic split into partitions, read by a consumer group.",
+    "Think of it like this. Railway: line = topic, track = partition, porters = consumers, offset = how far each porter has unloaded."
+   ],
+   [
+    "The producer chooses the partition from the key (here the tenant). Same key, same partition, same order."
+   ],
+   [
+    "Events are appended to partitions. Order is guaranteed only inside a partition."
+   ],
+   [
+    "Each partition is read by exactly one consumer in the group. More consumers than partitions sit idle."
+   ],
+   [
+    "If consumers fall behind, lag grows. Check slow handlers, hot partitions, downstream timeouts."
+   ],
+   [
+    "Delivery is at-least-once in practice, so handlers must be idempotent (dedupe by event id)."
+   ],
+   [
+    "Poison messages go to a dead-letter topic after bounded retries, with an alert and a replay tool."
+   ],
+   [
+    "To avoid \"DB saved, Kafka failed\", write the event to an outbox table in the same transaction and let a relay publish it."
+   ]
+  ]
+ ]
+}

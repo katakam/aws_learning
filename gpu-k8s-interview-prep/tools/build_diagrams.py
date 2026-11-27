@@ -35,6 +35,15 @@ WHY = {
  'Kafka': "Why does this matter? The role mentions Kafka for event driven integration. Interviewers want to hear that you understand ordering, duplicates, lag and failure handling, not just that Kafka is a message queue. Explain these four ideas simply, and you will sound like someone who has run it in production.",
 }
 
+import re, json, html as _html
+_PENDING = []   # scenes of the page being built
+NARR = {}       # page slug -> scenes -> step texts (written to diagrams/audio/narration.json)
+
+
+def _plain(t):
+    return _html.unescape(re.sub(r'<[^>]+>', '', t)).strip()
+
+
 # ---------- helpers ----------
 def _attrs(s=None, a=None):
     return (f' data-s="{s}"' if s is not None else ''), (f' data-a="{a}"' if a is not None else '')
@@ -74,6 +83,16 @@ def scene(title, h, body, caps):
     lis = ''.join(
         f'<li>{c[0]}' + (f'<span class="an">🛺 {c[1]}</span>' if len(c) > 1 and c[1] else '') + '</li>' for c in caps)
     w = WHY.get(title, '')
+    texts = []
+    for i, c in enumerate(caps):
+        parts = []
+        if i == 0 and w:
+            parts.append('Why this matters. ' + w)
+        parts.append(_plain(c[0]))
+        if len(c) > 1 and c[1]:
+            parts.append('Think of it like this. ' + c[1])
+        texts.append(parts)
+    _PENDING.append(texts)
     whyhtml = (f'<div class="why"><b class="wl">Why this matters</b><span class="wt">{w}</span></div>' if w else '')
     return (f'<section class="scene" data-title="{title}">{whyhtml}<div class="stage">'
             f'<svg viewBox="0 0 960 {h}" role="img" aria-label="{title}">{body}</svg></div>'
@@ -81,11 +100,14 @@ def scene(title, h, body, caps):
 
 
 def page(fname, title, sub, no, is_, scenes):
+    slug = fname[:-5]
+    NARR[slug] = list(_PENDING)
+    _PENDING.clear()
     html = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title}</title>
 <link rel="stylesheet" href="assets/anim.css">
-</head><body><div class="wrap">
+</head><body data-page="{slug}"><div class="wrap">
 <div class="nav"><a href="index.html">← All diagrams</a></div>
 <h1>{title}</h1><p class="sub">{sub}</p>
 <p class="fence"><b class="no">NOT:</b> {no}<br><b class="is">IS:</b> {is_}</p>
@@ -94,8 +116,9 @@ def page(fname, title, sub, no, is_, scenes):
 {''.join(scenes)}
 <div class="opts"><label><input type="checkbox" id="nar" checked> 🔊 Narration</label>
 <label>Speed <select id="spd"><option value="0.85">Slow</option><option value="0.95" selected>Normal</option><option value="1.1">Fast</option></select></label>
-<label>Voice <select id="voice"></select></label></div>
-<p class="hintline">Press <b>Play (with audio)</b> for a narrated walkthrough. Browsers only speak after a click. Pick a voice you like (an Indian or British English one works well).</p>
+</div>
+<p class="hintline" id="amsg" style="color:#B85C00;min-height:1.2em"></p>
+<p class="hintline">Press <b>Play (with audio)</b> for a narrated walkthrough. Audio is a recorded voice and plays in any browser after a click.</p>
 <div class="ctrl"><button class="btn" id="prev">◀ Prev</button><button class="btn pri" id="play">▶ Play (with audio)</button>
 <button class="btn" id="next">Next ▶</button><button class="btn" id="reset">↺ Reset</button><span id="pos"></span></div>
 <div class="bar"><i></i></div>
@@ -662,3 +685,5 @@ def index():
 if __name__ == '__main__':
     OUT.mkdir(exist_ok=True)
     d01(); d02(); d03(); d04(); d05(); d06(); d07(); d08(); index()
+    (OUT / 'audio').mkdir(exist_ok=True)
+    (OUT / 'audio' / 'narration.json').write_text(json.dumps(NARR, indent=1, ensure_ascii=False), encoding='utf-8')

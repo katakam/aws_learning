@@ -16,7 +16,7 @@ Everyday-analogy explanations, interview Q&A, runnable-style manifests, a Spring
 
 ## Animated diagrams
 Open `diagrams/index.html` locally, or enable GitHub Pages (Settings → Pages → branch `main`, folder `/`) and visit `/diagrams/`.
-Each page opens with a "Why this matters" card and **spoken narration** (browser built-in voice; press Play with audio, choose voice and speed). Controls: Play/Pause, Prev/Next (speaks that step), or ← → and Space. Deep link: `page.html#s=<scene>&t=<step>`.
+Each page opens with a "Why this matters" card and **recorded narration** (MP3 files in `diagrams/audio/`, plays in any browser; press Play with audio, choose speed). Controls: Play/Pause, Prev/Next (speaks that step), or ← → and Space. Deep link: `page.html#s=<scene>&t=<step>`.
 
 1. From Pod YAML to GPU
 2. Sharing: exclusive / time-slicing / MIG / MPS
@@ -27,7 +27,7 @@ Each page opens with a "Why this matters" card and **spoken narration** (browser
 7. Private-cloud GPU/AI platform layers
 8. Kafka: partitions, consumer groups, lag, DLQ, outbox
 
-Regenerate: `python3 tools/build_diagrams.py`
+Regenerate pages: `python3 tools/build_diagrams.py`. Regenerate audio: `python3 tools/gen_audio.py MODEL.onnx VOICES.bin` (Kokoro open-source TTS, see script header).
 
 ## Status and caveats
 - Facts checked Nov 2026: Kubernetes 1.37 current; DRA core GA in 1.34, DRA extended-resource GA in 1.37; Spring Boot 4.1.x current (Boot 3.5 OSS EOL 30 Jun 2026).
