@@ -655,6 +655,119 @@ def d08():
          [scene('Kafka', 420, b, caps)])
 
 # ======================================================================
+# ======================================================================
+# 09  Leadership: operating rhythm, incident command, struggling lead, answer frame
+# ======================================================================
+def d09():
+    scenes = []
+    # --- operating rhythm
+    b = ''
+    b += box(380, 20, 200, 56, 'n', 'You (Director)', 'direction · standards', a='1 5')
+    for i, x in enumerate((90, 380, 670)):
+        b += box(x, 150, 200, 56, 'b', f'Team lead {chr(65 + i)}', 'owns delivery + people', s=1, a='1 2')
+        b += box(x, 280, 200, 56, 'g', f'Team {chr(65 + i)}', 'engineers', s=1, a=3)
+    b += box(20, 380, 920, 44, 'p', 'Shared dashboard: delivery · quality · incidents · people', None, s=5, a=5)
+    for x in (190, 480, 770):
+        b += flow(f'M{x},76 L{x},150' if x != 480 else 'M480,76 L480,150', 1, 'b')
+    b += flow('M190,206 L190,280', 3, 'g') + flow('M480,206 L480,280', 3, 'g') + flow('M770,206 L770,280', 3, 'g')
+    b += label(655, 118, 'weekly 1:1 per lead', 'sm', s=2, color='#1A5CBF')
+    b += label(335, 118, 'weekly delivery + risk review', 'sm', s=2, color='#1A5CBF')
+    b += label(190, 360, 'monthly skip-level with engineers', 'sm', s=3, color='#0E6E48')
+    b += label(770, 360, 'quarterly roadmap + capability review', 'sm', s=4, color='#5B2EA6')
+    caps = [('How you lead <b>through</b> team leads: a rhythm, not a personality.',
+             'Head chef and sous-chefs: standards from the top, each station run by its owner.'),
+            ('Set outcomes and guardrails with each lead. They own the how.',),
+            ('Weekly <b>one-to-one</b> with each lead (coaching, decisions, early bad news) and a short weekly delivery and risk review.',),
+            ('Monthly <b>skip-levels</b> with engineers: hear what leads may not tell you, check morale and on-call load.',),
+            ('Quarterly <b>roadmap and capability review</b>: priorities, succession, skills gaps.',),
+            ('A shared dashboard (delivery, quality, incidents, people) means I stay informed without micromanaging. I step in only when it turns red.',)]
+    scenes.append(scene('Operating rhythm', 450, b, caps))
+
+    # --- incident command
+    b = ''
+    xs = [20, 260, 500, 740]
+    items = [('Detect', 'alert or customer report', 'r'), ('Declare', 'severity + commander', 'a'),
+             ('Roles', 'comms · scribe · experts', 'b'), ('Mitigate first', 'rollback / failover', 'g'),
+             ('Communicate', 'update every 30 min', 'p'), ('Recover', 'verify with metrics', 'g'),
+             ('Blameless review', 'within days', 'b'), ('Actions land', 'owners + dates, checked', 'n')]
+    for i, (t, sub, c) in enumerate(items):
+        x = xs[i % 4]; y = 70 if i < 4 else 250
+        b += box(x, y, 190, 70, c, t, sub, s=i + 1, a=i + 1)
+    for i in range(1, 8):
+        if i == 4:
+            b += flow('M835,140 L835,195 L115,195 L115,250', 5)
+        else:
+            x = xs[i % 4]; y = 105 if i < 4 else 285
+            b += flow(f'M{x - 50},{y} L{x},{y}', i + 1)
+    b += label(480, 360, 'Fix the system, not the person. Then check the fixes actually shipped.', 'sm', s=8, color='#1A5CBF')
+    caps = [('A production incident, step by step. Use this shape for every incident story.',
+             'Fire drill: one warden in charge, clear roles, get people out first, investigate after.'),
+            ('<b>Detect:</b> an alert or a customer reports it.',),
+            ('<b>Declare:</b> set the severity and name one incident commander.',),
+            ('<b>Roles:</b> comms, scribe, and the right experts only. Avoid a crowd on the call.',),
+            ('<b>Mitigate first:</b> rollback or failover before deep diagnosis.',),
+            ('<b>Communicate:</b> regular updates to stakeholders, even if the update is "no change".',),
+            ('<b>Recover:</b> confirm with metrics, not with feelings.',),
+            ('<b>Blameless review</b> within days: what in the system allowed this?',),
+            ('<b>Actions land:</b> owners and dates, and you check they are done. This is what panels remember.',)]
+    scenes.append(scene('Incident command', 400, b, caps))
+
+    # --- struggling lead
+    b = ''
+    xs = [20, 260, 500, 740]
+    items = [('Facts', 'outcomes, not impressions', 'n'), ('Feedback', 'private, specific, soon', 'b'),
+             ('30-60 day plan', 'goals + support', 'g'), ('Check weekly', 'written notes', 'p')]
+    for i, (t, sub, c) in enumerate(items):
+        b += box(xs[i], 110, 190, 70, c, t, sub, s=i + 1, a=i + 1)
+    for i in range(1, 4):
+        b += flow(f'M{xs[i] - 50},145 L{xs[i]},145', i + 1)
+    b += box(260, 250, 190, 70, 'g', 'Improves', 'stay, recognise it', s=5, a=5)
+    b += box(500, 250, 190, 70, 'a', 'Not improving', 'role change or exit, fairly', s=6, a=6)
+    b += box(740, 250, 190, 70, 'b', 'Protect the team', 'cover gaps throughout', s=7, a=7)
+    b += flow('M835,180 L835,215 L355,215 L355,250', 5, 'g')
+    b += flow('M835,215 L595,215 L595,250', 6, 'a')
+    b += flow('M835,215 L835,250', 7, 'b')
+    caps = [('A team lead is not delivering. The panel tests courage and fairness together.',
+             'Like a coach with a player who is out of form: honest feedback, a training plan, and a fair selection decision.'),
+            ('<b>Facts first:</b> look at outcomes and examples, not impressions.',),
+            ('<b>Feedback</b> privately and specifically, soon, not at the annual review.',),
+            ('Agree a <b>30 to 60 day plan</b> with clear goals and real support: coaching, reduced scope.',),
+            ('<b>Check weekly</b> and keep short written notes.',),
+            ('If they improve, recognise it publicly.',),
+            ('If not, decide fairly: a role change or an exit, with dignity.',),
+            ('Throughout, <b>protect the team</b>: a senior engineer covers gaps so delivery does not suffer.',)]
+    scenes.append(scene('Underperforming lead', 360, b, caps))
+
+    # --- C-P-A-C-L frame
+    b = ''
+    items = [('Clarify', '1-2 facts, out loud', 'n'), ('Prioritise', 'people, risk, then schedule', 'a'),
+             ('Act', 'three steps, in order', 'g'), ('Communicate', 'who, and when', 'p'),
+             ('Learn', 'prevent a repeat', 'b')]
+    for i, (t, sub, c) in enumerate(items):
+        x = 20 + i * 188
+        b += box(x, 110, 170, 80, c, t, sub, s=i + 1, a=i + 1)
+    for i in range(1, 5):
+        x = 20 + i * 188
+        b += flow(f'M{x - 18},150 L{x},150', i + 1)
+    b += box(150, 250, 660, 50, 'n', 'Example: "Your best lead resigns two weeks before a release."', None, s=6)
+    b += label(480, 330, 'Clarify: which release, is the lead leaving on good terms?  Prioritise: protect the release and the team.', 'sm', s=6)
+    caps = [('Five steps for any "what would you do if…" question. About 60 seconds.',
+             'Like a doctor in casualty: ask, triage, treat, tell the family, then fix the process.'),
+            ('<b>Clarify</b> one or two facts out loud. It shows judgement and buys thinking time.',),
+            ('<b>Prioritise</b>: people and risk first, schedule after.',),
+            ('<b>Act</b> in three clear steps, in the order you would do them.',),
+            ('<b>Communicate</b>: name who needs to hear what, and when.',),
+            ('<b>Learn</b>: say how you prevent a repeat. That is the senior part.',),
+            ('Try it on a real prompt, out loud, with a timer.',)]
+    scenes.append(scene('Live answer frame', 360, b, caps))
+
+    page('09-leadership-management.html', 'Leadership and management: how you actually lead',
+         'Operating rhythm, incident command, a struggling lead, and a frame for live scenarios',
+         'Leadership as a personality trait or a list of buzzwords like "servant leader".',
+         'A repeatable system: a rhythm with your leads, clear roles in a crisis, fair and early feedback, and a calm way to think aloud.',
+         scenes)
+
+
 def index():
     cards = [
         ('01-gpu-scheduling-flow.html', 'From Pod YAML to GPU', 'Device plugin, scheduler, kubelet, toolkit, driver'),
@@ -665,6 +778,8 @@ def index():
         ('06-springboot-gpu-gateway.html', 'Gateway + GPU autoscaling', 'Bulkhead, KEDA on queue depth, Karpenter'),
         ('07-ai-platform-private-cloud.html', 'AI platform layers', 'Private-cloud GPU/AI platform, top to bottom'),
         ('08-kafka-event-flow.html', 'Kafka event flow', 'Partitions, consumer groups, lag, DLQ, outbox'),
+        ('09-leadership-management.html', 'Leadership and management', 'Operating rhythm, incident command, struggling lead, answer frame'),
+        ('drills.html', 'Mock interview: leadership questions', 'Hear each question, answer aloud with a timer, then reveal the answer shape'),
     ]
     items = ''.join(
         f'<a class="card" href="{h}"><h3>{t}</h3><p>{d}</p></a>' for h, t, d in cards)
@@ -684,6 +799,6 @@ def index():
 
 if __name__ == '__main__':
     OUT.mkdir(exist_ok=True)
-    d01(); d02(); d03(); d04(); d05(); d06(); d07(); d08(); index()
+    d01(); d02(); d03(); d04(); d05(); d06(); d07(); d08(); d09(); index()
     (OUT / 'audio').mkdir(exist_ok=True)
     (OUT / 'audio' / 'narration.json').write_text(json.dumps(NARR, indent=1, ensure_ascii=False), encoding='utf-8')

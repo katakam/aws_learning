@@ -362,5 +362,109 @@
     "To avoid \"DB saved, Kafka failed\", write the event to an outbox table in the same transaction and let a relay publish it."
    ]
   ]
+ ],
+ "09-leadership-management": [
+  [
+   [
+    "How you lead through team leads: a rhythm, not a personality.",
+    "Think of it like this. Head chef and sous-chefs: standards from the top, each station run by its owner."
+   ],
+   [
+    "Set outcomes and guardrails with each lead. They own the how."
+   ],
+   [
+    "Weekly one-to-one with each lead (coaching, decisions, early bad news) and a short weekly delivery and risk review."
+   ],
+   [
+    "Monthly skip-levels with engineers: hear what leads may not tell you, check morale and on-call load."
+   ],
+   [
+    "Quarterly roadmap and capability review: priorities, succession, skills gaps."
+   ],
+   [
+    "A shared dashboard (delivery, quality, incidents, people) means I stay informed without micromanaging. I step in only when it turns red."
+   ]
+  ],
+  [
+   [
+    "A production incident, step by step. Use this shape for every incident story.",
+    "Think of it like this. Fire drill: one warden in charge, clear roles, get people out first, investigate after."
+   ],
+   [
+    "Detect: an alert or a customer reports it."
+   ],
+   [
+    "Declare: set the severity and name one incident commander."
+   ],
+   [
+    "Roles: comms, scribe, and the right experts only. Avoid a crowd on the call."
+   ],
+   [
+    "Mitigate first: rollback or failover before deep diagnosis."
+   ],
+   [
+    "Communicate: regular updates to stakeholders, even if the update is \"no change\"."
+   ],
+   [
+    "Recover: confirm with metrics, not with feelings."
+   ],
+   [
+    "Blameless review within days: what in the system allowed this?"
+   ],
+   [
+    "Actions land: owners and dates, and you check they are done. This is what panels remember."
+   ]
+  ],
+  [
+   [
+    "A team lead is not delivering. The panel tests courage and fairness together.",
+    "Think of it like this. Like a coach with a player who is out of form: honest feedback, a training plan, and a fair selection decision."
+   ],
+   [
+    "Facts first: look at outcomes and examples, not impressions."
+   ],
+   [
+    "Feedback privately and specifically, soon, not at the annual review."
+   ],
+   [
+    "Agree a 30 to 60 day plan with clear goals and real support: coaching, reduced scope."
+   ],
+   [
+    "Check weekly and keep short written notes."
+   ],
+   [
+    "If they improve, recognise it publicly."
+   ],
+   [
+    "If not, decide fairly: a role change or an exit, with dignity."
+   ],
+   [
+    "Throughout, protect the team: a senior engineer covers gaps so delivery does not suffer."
+   ]
+  ],
+  [
+   [
+    "Five steps for any \"what would you do if…\" question. About 60 seconds.",
+    "Think of it like this. Like a doctor in casualty: ask, triage, treat, tell the family, then fix the process."
+   ],
+   [
+    "Clarify one or two facts out loud. It shows judgement and buys thinking time."
+   ],
+   [
+    "Prioritise: people and risk first, schedule after."
+   ],
+   [
+    "Act in three clear steps, in the order you would do them."
+   ],
+   [
+    "Communicate: name who needs to hear what, and when."
+   ],
+   [
+    "Learn: say how you prevent a repeat. That is the senior part."
+   ],
+   [
+    "Try it on a real prompt, out loud, with a timer."
+   ]
+  ]
  ]
 }

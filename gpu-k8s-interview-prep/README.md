@@ -11,7 +11,8 @@ Everyday-analogy explanations, interview Q&A, runnable-style manifests, a Spring
 | One-page revision sheet | [docs/04-cheatsheet.md](docs/04-cheatsheet.md) |
 | **Leadership and management live questions** (34 + curveballs + 8 scenario drills, with answer shapes and samples) | [docs/06-leadership-management-questions.md](docs/06-leadership-management-questions.md) |
 | Director / Associate Director (platform engineering) interview: leadership, delivery, architecture, Kafka, SPA, ops, scenarios, 90 days | [docs/05-director-platform-engineering-interview.md](docs/05-director-platform-engineering-interview.md) |
-| Animated diagrams (open `diagrams/index.html` in a browser) | [diagrams/](diagrams/index.html) |
+| Animated diagrams, 9 with recorded narration (open `diagrams/index.html` in a browser) | [diagrams/](diagrams/index.html) |
+| Spoken mock interview for leadership questions (voice, timer, answer frame) | [diagrams/drills.html](diagrams/drills.html) |
 | YAML you can adapt (pod, time-slicing, MIG, Kueue, DRA, vLLM, KEDA, Karpenter, Spring gateway) | [manifests/](manifests/) |
 | Spring Boot gateway sample (bulkhead, timeouts, SSE, Micrometer) | [springboot-gpu-gateway/](springboot-gpu-gateway/) |
 
